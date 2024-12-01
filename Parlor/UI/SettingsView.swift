@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("channelLimit") private var channelLimit = 100
+    @AppStorage("consoleLimit") private var consoleLimit = 10000
     @AppStorage("showServerInfo") private var showServerInfo = true
 
     @AppStorage("showTimestamps") private var showTimestamps = true
@@ -18,6 +19,7 @@ struct SettingsView: View {
             Tab("General", systemImage: "gear") {
                 Form {
                     TextField("Channel limit", value: $channelLimit, format: .number)
+                    TextField("Console limit", value: $consoleLimit, format: .number)
                     Toggle("Show server info", isOn: $showServerInfo)
                 }
             }

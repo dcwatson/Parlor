@@ -11,7 +11,7 @@ struct UserList: View {
     @Environment(IRCClient.self) var client
     @Environment(IRCChannel.self) var channel
 
-    @State private var selectedUser: IRCUser? = nil
+    @State private var selectedUser: IRCUser.ID? = nil
 
     var body: some View {
         List(channel.users, selection: $selectedUser) { user in
@@ -26,25 +26,26 @@ struct UserList: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .tag(user)
+            .tag(user.id)
             .listRowSeparator(.hidden)
+        }
+        .contextMenu(forSelectionType: IRCUser.ID.self) { users in
+            Button("Message") {
+                startConversation(users)
+            }
+        } primaryAction: { users in
+            startConversation(users)
         }
         #if os(macOS)
             .listStyle(.inset)
-            .contextMenu(forSelectionType: IRCUser.self) { users in
-                Button("Message") {
-                    startConversation(users)
-                }
-            } primaryAction: { users in
-                startConversation(users)
-            }
         #else
-            .listStyle(.plain)
+            .listStyle(.inset)
         #endif
     }
 
-    func startConversation(_ users: Set<IRCUser>) {
-        if let user = users.first, user.nickname != client.nickname,
+    func startConversation(_ users: Set<IRCUser.ID>) {
+        if let nickname = users.first, nickname != client.nickname,
+            let user = client.getUser(nickname),
             let conversation = client.getConversation(user, create: true)
         {
             client.appEvent(.jumpToConversation(conversation))

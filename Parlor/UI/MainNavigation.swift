@@ -85,7 +85,10 @@ struct MainNavigation: View {
         }
         .onReceive(client.events) { event in
             if case .app(let event) = event {
-                if case .jumpToConversation(let conversation) = event {
+                switch event {
+                case .jumpToChannel(let channel):
+                    selection = .channel(channel)
+                case .jumpToConversation(let conversation):
                     selection = .conversation(conversation)
                 }
             }

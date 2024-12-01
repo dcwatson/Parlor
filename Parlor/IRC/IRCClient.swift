@@ -27,6 +27,7 @@ enum IRCChannelEvent {
 }
 
 enum AppEvent {
+    case jumpToChannel(IRCChannel)
     case jumpToConversation(IRCConversation)
 }
 
@@ -196,6 +197,8 @@ enum IRCEvent {
     @ObservationIgnored private var stateStream: AnyCancellable? = nil
     @ObservationIgnored private var eventStream = PassthroughSubject<IRCEvent, Never>()
 
+    @ObservationIgnored @AppStorage("consoleLimit") private var consoleLimit = 10000
+
     init() {
         events = eventStream.eraseToAnyPublisher()
         lineStream = conn.lines.sink { line in
@@ -213,6 +216,13 @@ enum IRCEvent {
     func send(_ command: IRCCommand) {
         let line = command.toLine()
         conn.write(line)
+        logLine(line)
+    }
+
+    private func logLine(_ line: IRCLine) {
+        while log.count >= consoleLimit {
+            log.removeFirst()
+        }
         log.append(line)
     }
 
@@ -297,7 +307,7 @@ enum IRCEvent {
     private func lineReceived(_ line: IRCLine) {
         // Ignore RPL_LIST items for now, since there can be thousands of them.
         if line.command != "322" {
-            log.append(line)
+            logLine(line)
         }
         eventStream.send(.line(line))
 
@@ -335,6 +345,7 @@ enum IRCEvent {
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
                 send(.who(mask: channel.name))
+                eventStream.send(.app(.jumpToChannel(channel)))
             }
         case "PART":
             guard let user = getUser(line.source), let channel = getChannel(line[0]) else { return }

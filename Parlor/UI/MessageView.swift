@@ -25,7 +25,7 @@ struct MessageView: View {
                 Text(timeFormatter.string(from: message.timestamp))
                     .font(.caption)
                     .foregroundStyle(Color.secondary)
-                    .frame(width: 50)
+                    .frame(width: 60)
             }
             Text(message.user.nickname)
                 .bold()

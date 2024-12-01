@@ -32,6 +32,9 @@ struct ConnectForm: View {
                 SecureField("Password", text: $password)
             }
             Button("Connect") {
+                client.nickname = nickname
+                client.username = username
+                client.realname = realname
                 client.connect(address, port: UInt16(port)!)
             }
         }
