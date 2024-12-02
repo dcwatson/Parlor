@@ -16,6 +16,7 @@ let timeFormatter: DateFormatter = {
 
 struct MessageView: View {
     @AppStorage("showTimestamps") private var showTimestamps = true
+    @AppStorage("monospace") private var monospace = false
 
     let message: IRCMessage
 
@@ -30,8 +31,10 @@ struct MessageView: View {
             Text(message.user.nickname)
                 .bold()
                 .foregroundStyle(Color.accentColor)
-            Text(LocalizedStringKey(message.message))
+            Text(message.message)
         }
+        .monospaced(monospace)
+        .textSelection(.enabled)
     }
 }
 

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ConsoleLine: View {
+    @AppStorage("monospace") private var monospace = false
+
     let line: IRCLine
 
     var lineColor: Color {
@@ -23,10 +25,11 @@ struct ConsoleLine: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Image(systemName: line.outgoing ? "arrow.right" : "arrow.left")
-            Text(line.stringValue)
+            Text(line.toString())
                 .textSelection(.enabled)
         }
         .foregroundStyle(lineColor)
+        .monospaced(monospace)
     }
 }
 

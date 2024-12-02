@@ -75,6 +75,16 @@ extension IRCCapabilities {
         }
     }
 
+    func intersection(_ other: IRCCapabilities) -> IRCCapabilities {
+        var result: IRCCapabilities = []
+        for cap in self {
+            if other.has(cap.name, vendor: cap.vendor) {
+                result.append(cap)
+            }
+        }
+        return result
+    }
+
     var stringValue: String {
         self.map({ $0.stringValue }).joined(separator: " ")
     }
@@ -142,31 +152,6 @@ class IRCLine: Identifiable {
 
     var message: String? { params.last }
 
-    var stringValue: String {
-        var line = ""
-
-        if !tags.isEmpty {
-            let t = tags.map { $0.stringValue }.joined(separator: ";")
-            line += "@\(t) "
-        }
-
-        if let source {
-            line += ":\(source) "
-        }
-
-        line += command.uppercased()
-
-        for (idx, p) in params.enumerated() {
-            if idx == params.count - 1, p.firstIndex(of: " ") != nil {
-                line += " :" + p
-            } else {
-                line += " " + p
-            }
-        }
-
-        return line
-    }
-
     var reply: IRCReply? {
         guard let number = Int(command) else { return nil }
         return IRCReply(rawValue: number)
@@ -177,7 +162,7 @@ class IRCLine: Identifiable {
         return IRCError(rawValue: number)
     }
 
-    init(line: String) {
+    private init(line: String) {
         let reader = StringReader(line)
 
         if reader.peek() == "@" {
@@ -211,39 +196,49 @@ class IRCLine: Identifiable {
         _ command: String,
         params: [String] = [],
         tags: IRCTags = [],
-        source: String? = nil
+        source: String? = nil,
+        outgoing: Bool = true
     ) {
         self.tags = tags
         self.source = source
         self.command = command
         self.params = params
-        self.outgoing = true
+        self.outgoing = outgoing
     }
 
     subscript(_ idx: Int) -> String? {
         self.params.indices.contains(idx) ? self.params[idx] : nil
     }
 
+    subscript(_ name: String) -> String? {
+        self.tags[name]
+    }
+
     static func parse(_ line: String) -> IRCLine { return .init(line: line) }
+    
+    func toString(_ withTags: Bool = true) -> String {
+        var line = ""
+
+        if !tags.isEmpty && withTags {
+            let t = tags.map { $0.stringValue }.joined(separator: ";")
+            line += "@\(t) "
+        }
+
+        if let source {
+            line += ":\(source) "
+        }
+
+        line += command.uppercased()
+
+        for (idx, p) in params.enumerated() {
+            if idx == params.count - 1, p.firstIndex(of: " ") != nil {
+                line += " :" + p
+            } else {
+                line += " " + p
+            }
+        }
+
+        return line
+    }
+
 }
-
-/*
- enum IRCSource {
-     case server(String)
-     case user(IRCUser)
-     case none
- }
-
- enum IRCTarget {
-     case user(IRCUser)
-     case channel(String)
-     case other(String)
- }
-
- struct IRCMessage: Identifiable {
-    var line: IRCLine
-    var source: IRCSource
-    var target: IRCTarget
-    var command: IRCCommand
-}
-*/

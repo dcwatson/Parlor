@@ -34,7 +34,10 @@ struct MainNavigation: View {
 
     @AppStorage("showServerInfo") private var showServerInfo = true
 
-    @State private var selection: NavSelection? = .console
+    @State private var selection: NavSelection? = nil
+    @State private var showingAppSettings: Bool = false
+    @State private var showingJoinAlert: Bool = false
+    @State private var channelOrNick: String = ""
 
     var body: some View {
         NavigationSplitView {
@@ -50,21 +53,59 @@ struct MainNavigation: View {
                 Label("Browse Channels", systemImage: "list.bullet")
                     .tag(NavSelection.channels)
 
-                Section("Channels") {
-                    ForEach(client.channels) { channel in
-                        ChannelNavItem(channel: channel)
-                            .tag(NavSelection.channel(channel))
+                if !client.channels.isEmpty {
+                    Section("Channels") {
+                        ForEach(client.channels) { channel in
+                            ChannelNavItem(channel: channel)
+                                .tag(NavSelection.channel(channel))
+                        }
                     }
                 }
 
-                Section("Conversations") {
-                    ForEach(client.conversations) { conversation in
-                        Text(conversation.user.nickname)
-                            .tag(NavSelection.conversation(conversation))
+                if !client.conversations.isEmpty {
+                    Section("Conversations") {
+                        ForEach(client.conversations) { conversation in
+                            Text(conversation.user.nickname)
+                                .tag(NavSelection.conversation(conversation))
+                        }
+                    }
+                }
+
+                #if os(iOS)
+                    Button {
+                        showingAppSettings = true
+                    } label: {
+                        Label("App Settings", systemImage: "gear")
+                    }
+                #endif
+            }
+            .listStyle(.sidebar)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingJoinAlert = true
+                    } label: {
+                        Label("Join", systemImage: "plus")
+                    }
+                    .alert("Join/Message", isPresented: $showingJoinAlert) {
+                        TextField("#channel or nickname", text: $channelOrNick)
+                        Button("OK") {
+                            if channelOrNick.hasPrefix("#") {
+                                client.send(.join(channel: channelOrNick))
+                            } else {
+                                if let user = client.getUser(channelOrNick, create: true),
+                                    let convo = client.getConversation(user, create: true)
+                                {
+                                    client.appEvent(.jumpToConversation(convo))
+                                }
+                            }
+                            channelOrNick = ""
+                        }
+                    } message: {
+                        Text("Enter a channel name to join, or a nickname to send a message to.")
                     }
                 }
             }
-            .listStyle(.sidebar)
         } detail: {
             switch selection {
             case nil:
@@ -92,6 +133,9 @@ struct MainNavigation: View {
                     selection = .conversation(conversation)
                 }
             }
+        }
+        .sheet(isPresented: $showingAppSettings) {
+            SettingsView()
         }
     }
 }

@@ -14,6 +14,18 @@ struct ServerSupport: Identifiable {
     var id: String { key }
 }
 
+struct ServerCap: Identifiable {
+    var name: String
+    var fullName: String
+    var enabled: Bool
+
+    var id: String { name }
+    var enabledSort: String { enabled ? "0" : "1" }
+    var compactFullName: String {
+        enabled ? "✓ " + fullName : fullName
+    }
+}
+
 enum InfoTable {
     case supports
     case capabilities
@@ -53,10 +65,38 @@ struct ServerSupportTable: View {
     }
 }
 
+struct ServerCapabilityTable: View {
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+        private var isCompact: Bool { horizontalSizeClass == .compact }
+    #else
+        private let isCompact = false
+    #endif
+
+    @Binding var serverCaps: [ServerCap]
+    @State private var sortOrder = [KeyPathComparator(\ServerCap.name)]
+
+    var body: some View {
+        Table(serverCaps, sortOrder: $sortOrder) {
+            TableColumn("Capability", value: \.name) { cap in
+                Text(isCompact ? cap.compactFullName : cap.fullName)
+            }
+            TableColumn("Enabled", value: \.enabledSort) { cap in
+                Text(cap.enabled ? "Yes" : "")
+                    .bold(cap.enabled)
+            }
+        }
+        .onChange(of: sortOrder) {
+            serverCaps.sort(using: sortOrder)
+        }
+    }
+}
+
 struct ServerInfoView: View {
     @Environment(IRCClient.self) var client
 
     @State private var serverSupport: [ServerSupport] = []
+    @State private var serverCaps: [ServerCap] = []
     @State private var showTable: InfoTable = .supports
 
     var body: some View {
@@ -73,19 +113,25 @@ struct ServerInfoView: View {
                 case .supports:
                     ServerSupportTable(serverSupport: $serverSupport)
                 case .capabilities:
-                    Table(client.capabilities) {
-                        TableColumn("Capability", value: \.id)
-                    }
+                    ServerCapabilityTable(serverCaps: $serverCaps)
                 }
             }
         }
         .navigationTitle("Server Info")
         .task {
             serverSupport = []
-            for (key, value) in client.supports {
+            for (key, value) in client.supports.sorted(by: { $0.key < $1.key }) {
                 serverSupport.append(ServerSupport(key: key, value: value))
             }
-            serverSupport.sort(by: { $0.key < $1.key })
+
+            serverCaps = []
+            for cap in client.availableCapabilities.sorted(by: { $0.name < $1.name }) {
+                serverCaps.append(
+                    ServerCap(
+                        name: cap.name, fullName: cap.stringValue,
+                        enabled: client.capabilities.has(cap.name, vendor: cap.vendor))
+                )
+            }
         }
     }
 }

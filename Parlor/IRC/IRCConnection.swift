@@ -11,6 +11,31 @@ import Network
 
 let crlf: Data = Data([13, 10])
 
+private func getTLSParameters(allowInsecure: Bool, queue: DispatchQueue) -> NWParameters {
+    let options = NWProtocolTLS.Options()
+
+    sec_protocol_options_set_verify_block(
+        options.securityProtocolOptions,
+        { (sec_protocol_metadata, sec_trust, sec_protocol_verify_complete) in
+
+            let trust = sec_trust_copy_ref(sec_trust).takeRetainedValue()
+
+            var error: CFError?
+            if SecTrustEvaluateWithError(trust, &error) {
+                sec_protocol_verify_complete(true)
+            } else {
+                if allowInsecure == true {
+                    sec_protocol_verify_complete(true)
+                } else {
+                    sec_protocol_verify_complete(false)
+                }
+            }
+
+        }, queue)
+
+    return NWParameters(tls: options)
+}
+
 class IRCConnection {
     enum State {
         case disconnected
@@ -26,9 +51,9 @@ class IRCConnection {
     @Published var state: State = .disconnected
     lazy var lines = lineStream.eraseToAnyPublisher()
 
-    func connect(_ host: String, port: UInt16 = 6667) {
+    func connect(_ host: String, port: UInt16 = 6667, useTLS: Bool = false) {
         if state != .disconnected { return }
-        let params = NWParameters(tls: nil, tcp: .init())
+        let params = useTLS ? getTLSParameters(allowInsecure: true, queue: .main) : NWParameters(tls: nil, tcp: .init())
         conn = NWConnection(host: .init(host), port: .init(integerLiteral: port), using: params)
         conn?.stateUpdateHandler = self.handleStateChange(to:)
         conn?.start(queue: .main)
@@ -44,8 +69,8 @@ class IRCConnection {
         state = .disconnected
     }
 
-    func write(_ message: IRCLine) {
-        guard let data = message.stringValue.data(using: .utf8) else { return }
+    func write(_ message: IRCLine, includeTags: Bool = true) {
+        guard let data = message.toString(includeTags).data(using: .utf8) else { return }
         conn?.send(
             content: data + crlf,
             completion: .contentProcessed { err in

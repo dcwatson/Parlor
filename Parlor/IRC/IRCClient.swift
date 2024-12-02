@@ -20,12 +20,6 @@ let REQUEST_CAPS: IRCCapabilities = [
     "userhost-in-names",
 ].map { IRCCapability($0) }
 
-enum IRCChannelEvent {
-    case userJoined(IRCUser)
-    case userParted(IRCUser, String?)
-    case message(IRCMessage)
-}
-
 enum AppEvent {
     case jumpToChannel(IRCChannel)
     case jumpToConversation(IRCConversation)
@@ -49,127 +43,6 @@ enum IRCEvent {
     case app(AppEvent)
 }
 
-@Observable class IRCUser: Identifiable, Hashable {
-    var nickname: String
-    var username: String
-    var hostname: String
-    var realname: String
-
-    var hostmask: String {
-        "\(nickname)!\(username)@\(hostname)"
-    }
-
-    var id: String { nickname }
-
-    init<S: StringProtocol>(_ hostmask: S) {
-        let reader = StringReader(hostmask)
-        self.nickname = reader.readUntil("!")
-        self.username = reader.readUntil("@")
-        self.hostname = reader.read()
-        self.realname = ""
-    }
-
-    init(nickname: String, username: String = "", hostname: String = "", realname: String = "") {
-        self.nickname = nickname
-        self.username = username
-        self.hostname = hostname
-        self.realname = realname
-    }
-
-    static func == (lhs: IRCUser, rhs: IRCUser) -> Bool {
-        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-}
-
-@Observable class IRCMessage: Identifiable {
-    var id: String
-    var user: IRCUser
-    var message: String
-    var tags: IRCTags
-    var timestamp: Date
-
-    init(user: IRCUser, message: String?, tags: IRCTags) {
-        self.user = user
-        self.message = message ?? ""
-        self.tags = tags
-        self.id = tags["msgid"] ?? UUID().uuidString
-        self.timestamp = .now
-    }
-}
-
-@Observable class IRCChannel: Identifiable, Hashable {
-    var name: String
-    var topic: String
-    var users: [IRCUser] = []
-    var messages: [IRCMessage] = []
-    //var log: [IRCLine] = []
-
-    var id: String { name }
-
-    @ObservationIgnored var events: AnyPublisher<IRCChannelEvent, Never>
-    @ObservationIgnored private var eventStream = PassthroughSubject<IRCChannelEvent, Never>()
-
-    init(_ name: String, topic: String = "") {
-        self.name = name
-        self.topic = topic
-        self.events = eventStream.eraseToAnyPublisher()
-    }
-
-    static func == (lhs: IRCChannel, rhs: IRCChannel) -> Bool {
-        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    func join(_ user: IRCUser, sendEvent: Bool = true) {
-        if users.contains(user) { return }
-        users.append(user)
-        users.sort(by: { $0.nickname < $1.nickname })
-        if sendEvent {
-            eventStream.send(.userJoined(user))
-        }
-    }
-
-    func part(_ user: IRCUser, reason: String? = nil, sendEvent: Bool = true) {
-        users.removeAll(where: { $0.nickname == user.nickname })
-        if sendEvent {
-            eventStream.send(.userParted(user, reason))
-        }
-    }
-
-    func privmsg(_ message: IRCMessage) {
-        messages.append(message)
-        eventStream.send(.message(message))
-    }
-}
-
-@Observable class IRCConversation: Identifiable, Hashable {
-    var user: IRCUser
-    var messages: [IRCMessage] = []
-
-    init(user: IRCUser) {
-        self.user = user
-    }
-
-    func privmsg(_ message: IRCMessage) {
-        messages.append(message)
-    }
-
-    static func == (lhs: IRCConversation, rhs: IRCConversation) -> Bool {
-        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-}
-
 @Observable class IRCClient {
     enum Target {
         case channel(IRCChannel)
@@ -184,11 +57,14 @@ enum IRCEvent {
     var connected: Bool = false
     var supports: [String: String] = [:]
 
+    var availableCapabilities: IRCCapabilities = .init()
     var capabilities: IRCCapabilities = .init()
     var log: [IRCLine] = []
     var users: [IRCUser] = []
     var channels: [IRCChannel] = []
     var conversations: [IRCConversation] = []
+
+    var supportsTags: Bool { capabilities.has("message-tags") }
 
     @ObservationIgnored var events: AnyPublisher<IRCEvent, Never>
 
@@ -209,13 +85,13 @@ enum IRCEvent {
         }
     }
 
-    func connect(_ host: String, port: UInt16 = 6667) {
-        conn.connect(host, port: port)
+    func connect(_ host: String, port: UInt16 = 6667, useTLS: Bool = false) {
+        conn.connect(host, port: port, useTLS: useTLS)
     }
 
     func send(_ command: IRCCommand) {
         let line = command.toLine()
-        conn.write(line)
+        conn.write(line, includeTags: supportsTags)
         logLine(line)
     }
 
@@ -234,7 +110,7 @@ enum IRCEvent {
         guard let nickOrMask else { return nil }
 
         let newUser = IRCUser(nickOrMask)
-        if let user = users.first(where: { $0.nickname == newUser.nickname }) {
+        if let user = users.first(where: { $0.nickname.lowercased() == newUser.nickname.lowercased() }) {
             return user
         }
 
@@ -250,7 +126,7 @@ enum IRCEvent {
     func getChannel(_ name: String?, create: Bool = false) -> IRCChannel? {
         guard let name else { return nil }
 
-        if let channel = channels.first(where: { $0.name == name }) {
+        if let channel = channels.first(where: { $0.name.lowercased() == name.lowercased() }) {
             return channel
         }
 
@@ -279,10 +155,10 @@ enum IRCEvent {
     }
 
     func getTarget(_ target: String?) -> Target {
-        guard let target else { return .unspecified }
+        guard let target, target != "*" else { return .unspecified }
         if target.hasPrefix("#"), let channel = getChannel(target) {
             return .channel(channel)
-        } else if let user = getUser(target) {
+        } else if let user = getUser(target, create: true) {
             return .user(user)
         }
         return .unspecified
@@ -291,9 +167,9 @@ enum IRCEvent {
     private func connectionStateChanged(_ state: IRCConnection.State) {
         switch state {
         case .connected:
+            send(.capLS(version: 302))
             send(.nick(nickname: nickname))
             send(.user(user: username, realname: realname))
-            send(.capREQ(capabilities: REQUEST_CAPS))
             connected = true
             eventStream.send(.connected)
         case .disconnected:
@@ -356,7 +232,7 @@ enum IRCEvent {
         case "ERROR":
             guard let msg = line[0] else { return }
             eventStream.send(.serverError(msg))
-        case "PRIVMSG":
+        case "PRIVMSG", "NOTICE":
             guard let user = getUser(line.source) else { return }
             let message = IRCMessage(user: user, message: line.message, tags: line.tags)
             switch getTarget(line[0]) {
@@ -376,13 +252,20 @@ enum IRCEvent {
             }
         case "CAP":
             guard let newNick = line[0], let subcommand = line[1] else { return }
+            if newNick != "*" { nickname = newNick }
             switch subcommand.uppercased() {
             case "ACK":
-                if newNick != "*" { nickname = newNick }
                 if let caps = line.message {
                     capabilities.ack(.init(caps))
                 }
                 send(.capEND)
+            case "LS":
+                if let caps = line.message {
+                    availableCapabilities.ack(.init(caps))
+                }
+                if line[2] != "*" {
+                    send(.capREQ(capabilities: REQUEST_CAPS.intersection(availableCapabilities)))
+                }
             default:
                 break
             }

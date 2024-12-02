@@ -13,13 +13,26 @@ struct SettingsView: View {
     @AppStorage("showServerInfo") private var showServerInfo = true
 
     @AppStorage("showTimestamps") private var showTimestamps = true
+    @AppStorage("monospace") private var monospace = true
 
     var body: some View {
         TabView {
             Tab("General", systemImage: "gear") {
                 Form {
                     TextField("Channel limit", value: $channelLimit, format: .number)
+                        #if os(iOS)
+                            .overlay(alignment: .trailingFirstTextBaseline) {
+                                Text("Channel limit")
+                                .foregroundStyle(.secondary)
+                            }
+                        #endif
                     TextField("Console limit", value: $consoleLimit, format: .number)
+                        #if os(iOS)
+                            .overlay(alignment: .trailingFirstTextBaseline) {
+                                Text("Console limit")
+                                .foregroundStyle(.secondary)
+                            }
+                        #endif
                     Toggle("Show server info", isOn: $showServerInfo)
                 }
             }
@@ -27,11 +40,14 @@ struct SettingsView: View {
             Tab("Appearance", systemImage: "macwindow") {
                 Form {
                     Toggle("Show timestamps", isOn: $showTimestamps)
+                    Toggle("Use monospace font", isOn: $monospace)
                 }
             }
         }
-        .scenePadding()
-        .frame(width: 350, height: 150)
+        #if os(macOS)
+            .scenePadding()
+            .frame(width: 350, height: 150)
+        #endif
     }
 }
 
