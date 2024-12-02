@@ -43,6 +43,16 @@ struct ConversationView: View {
         .task {
             inputFocused = true
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    client.removeConversation(conversation)
+                    client.appEvent(.popNavigation)
+                } label: {
+                    Label("Close", systemImage: "slash.circle")
+                }
+            }
+        }
     }
 }
 

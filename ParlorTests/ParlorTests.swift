@@ -21,4 +21,9 @@ struct ParlorTests {
         #expect(line.source == "server")
         #expect(line.params == ["KEY=1:2:3", "FLAG", "NAME=4:5:6", "something else"])
     }
+    
+    @Test func testLastParamIsEmpty() async throws {
+        let line = IRCLine("TOPIC", params: ["#channel", ""])
+        #expect(line.toString() == "TOPIC #channel :")
+    }
 }

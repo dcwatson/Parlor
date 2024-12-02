@@ -85,14 +85,15 @@ class IRCConnection {
         case .setup:
             break
         case .waiting(let error):
-            print(error.localizedDescription)
+            print("waiting:", error.localizedDescription)
         case .preparing:
             break
         case .ready:
             self.state = .connected
             self.readData()
         case .failed(let error):
-            print(error.localizedDescription)
+            print("connection failed:", error.localizedDescription)
+            self.close()
         case .cancelled:
             print("cancelled")
         default:

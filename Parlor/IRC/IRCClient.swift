@@ -21,6 +21,7 @@ let REQUEST_CAPS: IRCCapabilities = [
 ].map { IRCCapability($0) }
 
 enum AppEvent {
+    case popNavigation
     case jumpToChannel(IRCChannel)
     case jumpToConversation(IRCConversation)
 }
@@ -110,7 +111,9 @@ enum IRCEvent {
         guard let nickOrMask else { return nil }
 
         let newUser = IRCUser(nickOrMask)
-        if let user = users.first(where: { $0.nickname.lowercased() == newUser.nickname.lowercased() }) {
+        if let user = users.first(where: {
+            $0.nickname.lowercased() == newUser.nickname.lowercased()
+        }) {
             return user
         }
 
@@ -152,6 +155,10 @@ enum IRCEvent {
         }
 
         return nil
+    }
+
+    func removeConversation(_ conversation: IRCConversation) {
+        conversations.removeAll(where: { $0 == conversation })
     }
 
     func getTarget(_ target: String?) -> Target {
@@ -228,6 +235,10 @@ enum IRCEvent {
             channel.part(user, reason: line[1])
             if user.nickname == nickname {
                 channels.removeAll(where: { $0.name == channel.name })
+            }
+        case "TOPIC":
+            if let channel = getChannel(line[0]), let topic = line.message {
+                channel.topic = topic
             }
         case "ERROR":
             guard let msg = line[0] else { return }
@@ -307,6 +318,10 @@ enum IRCEvent {
             }
         case .listend:
             eventStream.send(.channelListEnd)
+        case .topic:
+            if let channel = getChannel(line[1]), let topic = line.message {
+                channel.topic = topic
+            }
         default:
             break
         }

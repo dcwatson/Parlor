@@ -11,6 +11,8 @@ struct UserList: View {
     @Environment(IRCClient.self) var client
     @Environment(IRCChannel.self) var channel
 
+    @AppStorage("showHostmasks") private var showHostmasks = true
+
     @State private var selectedUser: IRCUser.ID? = nil
 
     var body: some View {
@@ -21,9 +23,11 @@ struct UserList: View {
                     .foregroundStyle(.green)
                 VStack(alignment: .leading) {
                     Text(user.nickname)
-                    Text("\(user.username)@\(user.hostname)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    if showHostmasks {
+                        Text("\(user.username)@\(user.hostname)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .tag(user.id)

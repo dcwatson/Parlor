@@ -16,6 +16,7 @@ enum IRCCommand {
     case quit(message: String)
     case part(channel: String)
     case who(mask: String)
+    case topic(channel: String, topic: String)
 
     case privmsg(target: String, message: String)
     case notice(target: String, message: String)
@@ -51,6 +52,8 @@ enum IRCCommand {
             return .init("WHO", params: [mask])
         case .part(let channel):
             return .init("PART", params: [channel])
+        case .topic(let channel, let topic):
+            return .init("TOPIC", params: [channel, topic])
 
         case .privmsg(let target, let message):
             return .init("PRIVMSG", params: [target, message])

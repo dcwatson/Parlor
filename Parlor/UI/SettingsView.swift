@@ -14,6 +14,7 @@ struct SettingsView: View {
 
     @AppStorage("showTimestamps") private var showTimestamps = true
     @AppStorage("monospace") private var monospace = true
+    @AppStorage("showHostmasks") private var showHostmasks = true
 
     var body: some View {
         TabView {
@@ -40,6 +41,7 @@ struct SettingsView: View {
             Tab("Appearance", systemImage: "macwindow") {
                 Form {
                     Toggle("Show timestamps", isOn: $showTimestamps)
+                    Toggle("Show hostmasks in user lists", isOn: $showHostmasks)
                     Toggle("Use monospace font", isOn: $monospace)
                 }
             }

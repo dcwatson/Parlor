@@ -231,7 +231,7 @@ class IRCLine: Identifiable {
         line += command.uppercased()
 
         for (idx, p) in params.enumerated() {
-            if idx == params.count - 1, p.firstIndex(of: " ") != nil {
+            if idx == params.count - 1, p.isEmpty || p.firstIndex(of: " ") != nil {
                 line += " :" + p
             } else {
                 line += " " + p

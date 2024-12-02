@@ -127,6 +127,8 @@ struct MainNavigation: View {
         .onReceive(client.events) { event in
             if case .app(let event) = event {
                 switch event {
+                case .popNavigation:
+                    selection = nil
                 case .jumpToChannel(let channel):
                     selection = .channel(channel)
                 case .jumpToConversation(let conversation):
