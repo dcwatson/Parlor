@@ -15,26 +15,54 @@ let timeFormatter: DateFormatter = {
 }()
 
 struct MessageView: View {
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+        private var isCompact: Bool { horizontalSizeClass == .compact }
+    #else
+        private let isCompact = false
+    #endif
+
     @AppStorage("showTimestamps") private var showTimestamps = true
     @AppStorage("monospace") private var monospace = false
 
     let message: IRCMessage
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            if showTimestamps {
-                Text(timeFormatter.string(from: message.timestamp))
-                    .font(.caption)
-                    .foregroundStyle(Color.secondary)
-                    .frame(width: 60)
+        if isCompact {
+            VStack(alignment: .leading) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(message.user.nickname)
+                        .bold()
+                        .foregroundStyle(Color.accentColor)
+                    if showTimestamps {
+                        Text(timeFormatter.string(from: message.timestamp))
+                            .font(.caption)
+                            .foregroundStyle(Color.secondary)
+                    }
+                    Spacer()
+                }
+                
+                Text(message.message)
             }
-            Text(message.user.nickname)
-                .bold()
-                .foregroundStyle(Color.accentColor)
-            Text(message.message)
+            .monospaced(monospace)
+            .textSelection(.enabled)
         }
-        .monospaced(monospace)
-        .textSelection(.enabled)
+        else {
+            HStack(alignment: .firstTextBaseline) {
+                if showTimestamps {
+                    Text(timeFormatter.string(from: message.timestamp))
+                        .font(.caption)
+                        .foregroundStyle(Color.secondary)
+                        .frame(width: 60)
+                }
+                Text(message.user.nickname)
+                    .bold()
+                    .foregroundStyle(Color.accentColor)
+                Text(message.message)
+            }
+            .monospaced(monospace)
+            .textSelection(.enabled)
+        }
     }
 }
 

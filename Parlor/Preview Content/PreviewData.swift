@@ -21,7 +21,8 @@ struct PreviewData: PreviewModifier {
         client.users = [beth, joey]
         channel.users = client.users
         channel.messages = [
-            .init(user: beth, message: "Baltimore Orioles, number one!", tags: [])
+            .init(user: beth, message: "Baltimore Orioles, number one!", tags: []),
+            .init(user: joey, message: "Shut up Beth", tags: []),
         ]
         client.channels = [channel]
         client.log = [
