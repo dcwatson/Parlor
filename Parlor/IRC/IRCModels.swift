@@ -57,7 +57,12 @@ import SwiftUI
         self.message = message ?? ""
         self.tags = tags
         self.id = tags["msgid"] ?? UUID().uuidString
-        self.timestamp = .now
+        if let time = tags["time"], let date = isoDateFormatter.date(from: time) {
+            self.timestamp = date
+        }
+        else {
+            self.timestamp = .now
+        }
     }
 }
 

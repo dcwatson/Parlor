@@ -18,6 +18,8 @@ let REQUEST_CAPS: IRCCapabilities = [
     "server-time",
     "standard-replies",
     "userhost-in-names",
+    "draft/chathistory",
+    "draft/event-playback",
 ].map { IRCCapability($0) }
 
 enum AppEvent {
@@ -217,6 +219,7 @@ enum IRCEvent {
             eventStream.send(.nickChanged(user, newNick))
         case "QUIT":
             guard let user = getUser(line.source) else { return }
+            if line["batch"] != nil { return }
             for channel in channels {
                 channel.part(user, sendEvent: false)
             }
@@ -225,13 +228,16 @@ enum IRCEvent {
             guard let user = getUser(line.source, create: true),
                 let channel = getChannel(line[0], create: true)
             else { return }
+            if line["batch"] != nil { return }
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
                 send(.who(mask: channel.name))
+                send(.chathistory(target: channel.name, command: .latest, limit: 50))
                 eventStream.send(.app(.jumpToChannel(channel)))
             }
         case "PART":
             guard let user = getUser(line.source), let channel = getChannel(line[0]) else { return }
+            if line["batch"] != nil { return }
             channel.part(user, reason: line[1])
             if user.nickname == nickname {
                 channels.removeAll(where: { $0.name == channel.name })

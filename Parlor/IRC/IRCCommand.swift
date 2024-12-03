@@ -5,6 +5,49 @@
 //  Created by Daniel Watson on 11/21/24.
 //
 
+import Foundation
+
+let isoDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"
+    formatter.timeZone = .gmt
+    return formatter
+}()
+
+enum ChatHistorySince {
+    case timestamp(Date)
+    case msgid(String)
+    case all
+    
+    var stringValue: String {
+        switch self {
+        case .timestamp(let date):
+            return "timestamp=" + isoDateFormatter.string(from: date)
+        case .msgid(let msgid):
+            return "msgid=" + msgid
+        case .all:
+            return "*"
+        }
+    }
+}
+
+enum ChatHistoryCommand {
+    case before(ChatHistorySince)
+    case after(ChatHistorySince)
+    case latest
+    
+    func toParams(_ target: String, limit: Int) -> [String] {
+        switch self {
+        case .before(let since):
+            return ["BEFORE", target, since.stringValue, String(limit)]
+        case .after(let since):
+            return ["AFTER", target, since.stringValue, String(limit)]
+        case .latest:
+            return ["LATEST", target, "*", String(limit)]
+        }
+    }
+}
+
 enum IRCCommand {
     case ping(token: String? = nil)
     case pong(token: String? = nil)
@@ -14,6 +57,7 @@ enum IRCCommand {
     case user(user: String, realname: String)
     case oper(name: String, password: String)
     case quit(message: String)
+    case join(channel: String, password: String? = nil)
     case part(channel: String)
     case who(mask: String)
     case topic(channel: String, topic: String)
@@ -25,7 +69,7 @@ enum IRCCommand {
     case capREQ(capabilities: IRCCapabilities)
     case capEND
 
-    case join(channel: String, password: String? = nil)
+    case chathistory(target: String, command: ChatHistoryCommand, limit: Int)
 
     case custom(command: String, params: [String] = [])
 
@@ -66,6 +110,9 @@ enum IRCCommand {
             return .init("CAP", params: ["REQ", capabilities.stringValue])
         case .capEND:
             return .init("CAP", params: ["END"])
+
+        case .chathistory(let target, let command, let limit):
+            return .init("CHATHISTORY", params: command.toParams(target, limit: limit))
 
         case .join(let channel, let password):
             var params = [channel]
