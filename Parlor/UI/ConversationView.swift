@@ -8,6 +8,13 @@
 import SwiftUI
 
 struct ConversationView: View {
+    #if os(iOS)
+        @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+        private var isCompact: Bool { horizontalSizeClass == .compact }
+    #else
+        private let isCompact = false
+    #endif
+
     @Environment(IRCClient.self) var client
     @Environment(IRCConversation.self) var conversation
 
@@ -17,7 +24,7 @@ struct ConversationView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 5) {
+                LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
                     ForEach(conversation.messages) { message in
                         MessageView(message: message)
                     }
