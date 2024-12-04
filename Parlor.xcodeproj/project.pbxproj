@@ -27,6 +27,8 @@
 			membershipExceptions = (
 				IRC/IRCConstants.swift,
 				IRC/IRCTypes.swift,
+				Utils/Notifier.swift,
+				Utils/SoundPlayer.swift,
 				Utils/StringReader.swift,
 			);
 			target = E5AE1A082CE81ADE004A8809 /* ParlorTests */;

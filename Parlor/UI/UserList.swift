@@ -16,7 +16,7 @@ struct UserList: View {
     @State private var selectedUser: IRCUser.ID? = nil
 
     var body: some View {
-        List(channel.users, selection: $selectedUser) { user in
+        List(channel.sortedUsers, selection: $selectedUser) { user in
             HStack(alignment: .firstTextBaseline) {
                 Circle()
                     .frame(width: 10, height: 10)

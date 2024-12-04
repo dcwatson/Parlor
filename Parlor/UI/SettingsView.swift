@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("channelLimit") private var channelLimit = 100
+    @AppStorage("messageLimit") private var messageLimit = 1000
     @AppStorage("consoleLimit") private var consoleLimit = 10000
     @AppStorage("showServerInfo") private var showServerInfo = true
 
@@ -16,18 +17,28 @@ struct SettingsView: View {
     @AppStorage("monospace") private var monospace = true
     @AppStorage("showHostmasks") private var showHostmasks = true
 
+    @AppStorage("playChatSound") private var playChatSound = true
+    @AppStorage("mentionNotifications") private var mentionNotifications = false
+
     var body: some View {
         TabView {
             Tab("General", systemImage: "gear") {
                 Form {
-                    TextField("Channel limit", value: $channelLimit, format: .number)
+                    TextField("Channel list limit", value: $channelLimit, format: .number)
                         #if os(iOS)
                             .overlay(alignment: .trailingFirstTextBaseline) {
                                 Text("Channel limit")
                                 .foregroundStyle(.secondary)
                             }
                         #endif
-                    TextField("Console limit", value: $consoleLimit, format: .number)
+                    TextField("Message limit", value: $messageLimit, format: .number)
+                        #if os(iOS)
+                            .overlay(alignment: .trailingFirstTextBaseline) {
+                                Text("Message limit")
+                                .foregroundStyle(.secondary)
+                            }
+                        #endif
+                    TextField("Console backlog limit", value: $consoleLimit, format: .number)
                         #if os(iOS)
                             .overlay(alignment: .trailingFirstTextBaseline) {
                                 Text("Console limit")
@@ -43,6 +54,18 @@ struct SettingsView: View {
                     Toggle("Show timestamps", isOn: $showTimestamps)
                     Toggle("Show hostmasks in user lists", isOn: $showHostmasks)
                     Toggle("Use monospace font", isOn: $monospace)
+                }
+            }
+            
+            Tab("Notifications", systemImage: "speaker") {
+                Form {
+                    Toggle("Play chat sound", isOn: $playChatSound)
+                    Toggle("Send notifications when mentioned", isOn: $mentionNotifications)
+                }
+                .onChange(of: mentionNotifications) {
+                    if mentionNotifications {
+                        Notifier.requestPermission()
+                    }
                 }
             }
         }

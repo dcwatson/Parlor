@@ -252,9 +252,14 @@ enum IRCEvent {
         case "PRIVMSG", "NOTICE":
             guard let user = getUser(line.source) else { return }
             let message = IRCMessage(user: user, message: line.message, tags: line.tags)
+            let mentioned = line.message?.lowercased().contains(nickname.lowercased()) ?? false
             switch getTarget(line[0]) {
             case .channel(let channel):
                 channel.privmsg(message)
+                // TODO: this should probably be in UI code?
+                if line["batch"] == nil {
+                    ParlorEvents.chat(message, mentioned: mentioned)
+                }
             case .user(let toUser):
                 if toUser.nickname == nickname, let convo = getConversation(user, create: true) {
                     convo.privmsg(message)

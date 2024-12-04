@@ -59,8 +59,7 @@ import SwiftUI
         self.id = tags["msgid"] ?? UUID().uuidString
         if let time = tags["time"], let date = isoDateFormatter.date(from: time) {
             self.timestamp = date
-        }
-        else {
+        } else {
             self.timestamp = .now
         }
     }
@@ -80,9 +79,13 @@ import SwiftUI
     //var log: [IRCLine] = []
 
     var id: String { name }
+    var sortedUsers: [IRCUser] {
+        users.sorted(by: { $0.nickname.lowercased() < $1.nickname.lowercased() })
+    }
 
     @ObservationIgnored var events: AnyPublisher<Event, Never>
     @ObservationIgnored private var eventStream = PassthroughSubject<Event, Never>()
+    @ObservationIgnored @AppStorage("messageLimit") private var messageLimit = 1000
 
     init(_ name: String, topic: String = "") {
         self.name = name
@@ -101,7 +104,6 @@ import SwiftUI
     func join(_ user: IRCUser, sendEvent: Bool = true) {
         if users.contains(user) { return }
         users.append(user)
-        users.sort(by: { $0.nickname < $1.nickname })
         if sendEvent {
             eventStream.send(.userJoined(user))
         }
@@ -116,6 +118,9 @@ import SwiftUI
 
     func privmsg(_ message: IRCMessage, sendEvent: Bool = true) {
         messages.append(message)
+        while messages.count > messageLimit {
+            messages.removeFirst()
+        }
         if sendEvent {
             eventStream.send(.message(message))
         }
@@ -126,12 +131,17 @@ import SwiftUI
     var user: IRCUser
     var messages: [IRCMessage] = []
 
+    @ObservationIgnored @AppStorage("messageLimit") private var messageLimit = 1000
+
     init(user: IRCUser) {
         self.user = user
     }
-    
+
     func privmsg(_ message: IRCMessage) {
         messages.append(message)
+        while messages.count > messageLimit {
+            messages.removeFirst()
+        }
     }
 
     static func == (lhs: IRCConversation, rhs: IRCConversation) -> Bool {
