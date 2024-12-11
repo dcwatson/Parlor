@@ -23,7 +23,7 @@ struct ChannelView: View {
     @State private var inputText: String = ""
     @State private var showingTopicAlert: Bool = false
     @State private var newTopic: String = ""
-    
+
     @FocusState private var inputFocused: Bool
 
     #if os(macOS)
@@ -43,7 +43,11 @@ struct ChannelView: View {
                         .truncationMode(.tail)
                     Spacer()
                 }
-                .padding(5)
+                #if os(macOS)
+                    .padding(10)
+                #else
+                    .padding()
+                #endif
                 .background(Color.accentColor.opacity(0.15))
             }
 

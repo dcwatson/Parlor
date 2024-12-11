@@ -56,6 +56,7 @@ enum IRCEvent {
     var nickname: String = "Beth"
     var realname: String = "Parlor User"
     var username: String = "parlor"
+    var password: String = ""
 
     var connected: Bool = false
     var supports: [String: String] = [:]
@@ -176,6 +177,9 @@ enum IRCEvent {
     private func connectionStateChanged(_ state: IRCConnection.State) {
         switch state {
         case .connected:
+            if !password.isEmpty {
+                send(.pass(password: password))
+            }
             send(.capLS(version: 302))
             send(.nick(nickname: nickname))
             send(.user(user: username, realname: realname))
@@ -250,14 +254,15 @@ enum IRCEvent {
             guard let msg = line[0] else { return }
             eventStream.send(.serverError(msg))
         case "PRIVMSG", "NOTICE":
-            guard let user = getUser(line.source) else { return }
+            guard let user = getUser(line.source, create: true) else { return }
             let message = IRCMessage(user: user, message: line.message, tags: line.tags)
-            let mentioned = line.message?.lowercased().contains(nickname.lowercased()) ?? false
             switch getTarget(line[0]) {
             case .channel(let channel):
                 channel.privmsg(message)
                 // TODO: this should probably be in UI code?
                 if line["batch"] == nil {
+                    let mentioned =
+                        line.message?.lowercased().contains(nickname.lowercased()) ?? false
                     ParlorEvents.chat(message, mentioned: mentioned)
                 }
             case .user(let toUser):

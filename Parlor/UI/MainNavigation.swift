@@ -37,6 +37,7 @@ struct MainNavigation: View {
     @State private var selection: NavSelection? = nil
     @State private var showingAppSettings: Bool = false
     @State private var showingJoinAlert: Bool = false
+    @State private var showingNicknameAlert: Bool = false
     @State private var channelOrNick: String = ""
 
     var body: some View {
@@ -81,7 +82,23 @@ struct MainNavigation: View {
             }
             .listStyle(.sidebar)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        showingNicknameAlert = true
+                    } label: {
+                        Label("Nickname", systemImage: "person.text.rectangle")
+                    }
+                    .alert("Change Nickname", isPresented: $showingNicknameAlert) {
+                        TextField("New nickname", text: $channelOrNick)
+                        Button("OK") {
+                            if !channelOrNick.isEmpty {
+                                client.nickname = channelOrNick
+                                client.send(.nick(nickname: channelOrNick))
+                            }
+                            channelOrNick = ""
+                        }
+                    }
+                    
                     Button {
                         showingJoinAlert = true
                     } label: {

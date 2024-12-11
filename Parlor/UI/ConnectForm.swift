@@ -16,8 +16,7 @@ struct ConnectForm: View {
     @AppStorage("nickname") private var nickname = "Beth"
     @AppStorage("username") private var username = "parlor"
     @AppStorage("realname") private var realname = "Parlor User"
-
-    @State private var password: String = ""
+    @AppStorage("password") private var password: String = ""
 
     var body: some View {
         Form {
@@ -38,7 +37,15 @@ struct ConnectForm: View {
                 client.nickname = nickname
                 client.username = username
                 client.realname = realname
+                client.password = password
                 client.connect(address, port: UInt16(port)!, useTLS: tls)
+            }
+        }
+        .onChange(of: tls) {
+            if tls && port == "6667" {
+                port = "6697"
+            } else if !tls && port == "6697" {
+                port = "6667"
             }
         }
     }
