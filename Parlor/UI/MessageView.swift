@@ -7,13 +7,6 @@
 
 import SwiftUI
 
-let timeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .none
-    formatter.timeStyle = .short
-    return formatter
-}()
-
 struct MessageView: View {
     #if os(iOS)
         @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -34,7 +27,7 @@ struct MessageView: View {
                     Text(message.user.nickname)
                         .bold()
                         .foregroundStyle(Color.accentColor)
-                    if showTimestamps {
+                    if showTimestamps && message.timeChanged {
                         Text(timeFormatter.string(from: message.timestamp))
                             .font(.caption)
                             .foregroundStyle(Color.secondary)
@@ -48,9 +41,20 @@ struct MessageView: View {
             .textSelection(.enabled)
         }
         else {
+            if message.dateChanged {
+                HStack {
+                    Spacer()
+                    Text(dateFormatter.string(from: message.timestamp))
+                        .font(.subheadline)
+                        .foregroundStyle(Color.secondary)
+                    Spacer()
+                }
+                .monospaced(monospace)
+                .textSelection(.enabled)
+            }
             HStack(alignment: .firstTextBaseline) {
                 if showTimestamps {
-                    Text(timeFormatter.string(from: message.timestamp))
+                    Text(message.maybeTimeString)
                         .font(.caption)
                         .foregroundStyle(Color.secondary)
                         .frame(width: 60)

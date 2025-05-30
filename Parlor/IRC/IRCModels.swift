@@ -52,6 +52,14 @@ import SwiftUI
     var timestamp: Date
     // var type: Type (.message, .notice, .join, .part, etc...)
 
+    // These are set when adding to a channel or conversation.
+    var dateChanged: Bool = false
+    var timeChanged: Bool = false
+
+    var maybeTimeString: String {
+        timeChanged ? timeFormatter.string(from: timestamp) : ""
+    }
+
     init(user: IRCUser, message: String?, tags: IRCTags) {
         self.user = user
         self.message = message ?? ""
@@ -117,10 +125,16 @@ import SwiftUI
     }
 
     func privmsg(_ message: IRCMessage, sendEvent: Bool = true) {
+        if let lastMessage = messages.last {
+            message.dateChanged = message.timestamp.dateChanged(since: lastMessage.timestamp)
+            message.timeChanged = message.timestamp.timeChanged(since: lastMessage.timestamp)
+        }
         messages.append(message)
         while messages.count > messageLimit {
             messages.removeFirst()
         }
+        messages.first!.dateChanged = true
+        messages.first!.timeChanged = true
         if sendEvent {
             eventStream.send(.message(message))
         }
