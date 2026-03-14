@@ -19,6 +19,7 @@ let REQUEST_CAPS: IRCCapabilities = [
     "standard-replies",
     "userhost-in-names",
     "draft/chathistory",
+    // This causes CHATHISTORY to include things like JOIN, PART, NICK, etc.
     "draft/event-playback",
 ].map { IRCCapability($0) }
 
@@ -214,6 +215,9 @@ enum IRCEvent {
     }
 
     private func handleCommand(_ command: String, line: IRCLine) {
+        // Ignore anything in a batch that isn't PRIVMSG or NOTICE (for now)
+        if line["batch"] != nil && command != "PRIVMSG" && command != "NOTICE" { return }
+
         switch command {
         case "PING":
             send(.pong(token: line.params.first))
@@ -223,7 +227,6 @@ enum IRCEvent {
             eventStream.send(.nickChanged(user, newNick))
         case "QUIT":
             guard let user = getUser(line.source) else { return }
-            if line["batch"] != nil { return }
             for channel in channels {
                 channel.part(user, sendEvent: false)
             }
@@ -232,7 +235,6 @@ enum IRCEvent {
             guard let user = getUser(line.source, create: true),
                 let channel = getChannel(line[0], create: true)
             else { return }
-            if line["batch"] != nil { return }
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
                 send(.who(mask: channel.name))
@@ -241,7 +243,6 @@ enum IRCEvent {
             }
         case "PART":
             guard let user = getUser(line.source), let channel = getChannel(line[0]) else { return }
-            if line["batch"] != nil { return }
             channel.part(user, reason: line[1])
             if user.nickname == nickname {
                 channels.removeAll(where: { $0.name == channel.name })

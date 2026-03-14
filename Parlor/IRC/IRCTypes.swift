@@ -107,6 +107,13 @@ struct IRCTag {
         t += key + "=" + value
         return t
     }
+
+    init(key: String, value: String, vendor: String? = nil, client: Bool = false) {
+        self.key = key
+        self.value = value
+        self.vendor = vendor
+        self.client = client
+    }
 }
 
 typealias IRCTags = [IRCTag]
@@ -123,7 +130,7 @@ extension IRCTags {
             let vendor = keyParts.count > 1 ? String(keyParts[0]) : nil
             let keyName = String(keyParts.last!)
             let value = String(tagParts.last!)
-            self.append(.init(client: client, vendor: vendor, key: keyName, value: value))
+            self.append(.init(key: keyName, value: value, vendor: vendor, client: client))
         }
     }
 
@@ -165,15 +172,13 @@ class IRCLine: Identifiable {
     private init(line: String) {
         let reader = StringReader(line)
 
-        if reader.peek() == "@" {
-            reader.skip(1)
+        if reader.skip("@") {
             tags = .init(reader.readUntil(" "))
         } else {
             tags = []
         }
 
-        if reader.peek() == ":" {
-            reader.skip(1)
+        if reader.skip(":") {
             source = reader.readUntil(" ")
         } else {
             source = nil
@@ -184,8 +189,7 @@ class IRCLine: Identifiable {
             .split(separator: " ", omittingEmptySubsequences: true)
             .map(String.init)
 
-        if reader.peek(2) == " :" {
-            reader.skip(2)
+        if reader.skip(" :") {
             params.append(reader.read())
         }
 
@@ -215,7 +219,7 @@ class IRCLine: Identifiable {
     }
 
     static func parse(_ line: String) -> IRCLine { return .init(line: line) }
-    
+
     func toString(_ withTags: Bool = true) -> String {
         var line = ""
 

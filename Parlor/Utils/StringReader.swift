@@ -28,6 +28,14 @@ class StringReader<S: StringProtocol> {
             .index(position, offsetBy: count, limitedBy: string.endIndex) ?? string.endIndex
     }
 
+    func skip(_ s: String) -> Bool {
+        if peek(s.count) == s {
+            skip(s.count)
+            return true
+        }
+        return false
+    }
+
     func read() -> String {
         defer { position = string.endIndex }
         return String(string[position..<string.endIndex])

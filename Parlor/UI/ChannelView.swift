@@ -33,45 +33,28 @@ struct ChannelView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 0) {
-            if !channel.topic.isEmpty {
-                HStack {
-                    Text(channel.topic)
-                        .textSelection(.enabled)
-                        .monospaced(monospace)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer()
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
+                ForEach(channel.messages) { message in
+                    MessageView(message: message)
                 }
-                #if os(macOS)
-                    .padding(10)
-                #else
-                    .padding()
-                #endif
-                .background(Color.accentColor.opacity(0.15))
             }
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
-                    ForEach(channel.messages) { message in
-                        MessageView(message: message)
-                    }
-                }
-                .padding()
+            .padding()
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 80)
+        }
+        .background(.background)
+        .defaultScrollAnchor(.bottom)
+        .overlay(alignment: .bottom) {
+            InputView(placeholder: "Message \(channel.name)", text: $inputText) { text in
+                client.send(.privmsg(target: channel.name, message: text))
+                inputText = ""
             }
-            .background(.background)
-            .defaultScrollAnchor(.bottom)
-
-            TextField("Message \(channel.name)", text: $inputText)
-                .padding(10)
-                .textFieldStyle(.plain)
-                .focused($inputFocused)
-                .onSubmit {
-                    client.send(.privmsg(target: channel.name, message: inputText))
-                    inputText = ""
-                }
         }
         .navigationTitle(channel.name)
+        .navigationSubtitle(channel.topic)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif

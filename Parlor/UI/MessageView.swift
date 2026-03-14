@@ -52,12 +52,12 @@ struct MessageView: View {
                 .monospaced(monospace)
                 .textSelection(.enabled)
             }
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 if showTimestamps {
                     Text(message.maybeTimeString)
                         .font(.caption)
                         .foregroundStyle(Color.secondary)
-                        .frame(width: 60)
+                        .frame(width: 60, alignment: .trailing)
                 }
                 Text(message.user.nickname)
                     .bold()
@@ -73,6 +73,9 @@ struct MessageView: View {
 #Preview(traits: .modifier(PreviewData())) {
     @Previewable @Environment(IRCClient.self) var client
 
-    MessageView(message: client.channels[0].messages[0])
+    VStack(alignment: .leading) {
+        MessageView(message: client.channels[0].messages[0])
+        MessageView(message: client.channels[0].messages[1])
+    }
         .padding()
 }

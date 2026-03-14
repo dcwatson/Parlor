@@ -20,10 +20,26 @@ struct PreviewData: PreviewModifier {
         let joey = IRCUser("Joey!parlor@localhost.localdomain")
         client.users = [beth, joey]
         channel.users = client.users
-        channel.messages = [
-            .init(user: beth, message: "Baltimore Orioles, number one!", tags: []),
-            .init(user: joey, message: "Shut up Beth", tags: []),
-        ]
+        channel.privmsg(
+            .init(
+                user: beth,
+                message: "Baltimore Orioles, number one!",
+                tags: [
+                    .init(key: "time", value: "2020-02-28T12:54:00.000Z")
+                ]
+            ),
+            sendEvent: false
+        )
+        channel.privmsg(
+            .init(
+                user: joey,
+                message: "Shut up Beth",
+                tags: [
+                    .init(key: "time", value: "2020-02-28T17:26:00.000Z")
+                ]
+            ),
+            sendEvent: false
+        )
         client.channels = [channel]
         client.log = [
             IRCLine("NICK", params: ["Beth"]),
