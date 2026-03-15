@@ -12,8 +12,24 @@ struct UserList: View {
     @Environment(IRCChannel.self) var channel
 
     @AppStorage("showHostmasks") private var showHostmasks = true
+    @AppStorage("showRealnames") private var showRealnames = true
+    @AppStorage("showAccounts") private var showAccounts = true
 
     @State private var selectedUser: IRCUser.ID? = nil
+
+    func userDescription(_ user: IRCUser) -> String {
+        var description: [String] = []
+        if showRealnames, !user.realname.isEmpty {
+            description.append(user.realname)
+        }
+        if showAccounts, let acct = user.acctname {
+            description.append("@\(acct)")
+        }
+        if showHostmasks {
+            description.append("\(user.username)@\(user.hostname)")
+        }
+        return description.joined(separator: " • ")
+    }
 
     var body: some View {
         List(channel.sortedUsers, selection: $selectedUser) { user in
@@ -23,8 +39,8 @@ struct UserList: View {
                     .foregroundStyle(.green)
                 VStack(alignment: .leading) {
                     Text(user.nickname)
-                    if showHostmasks {
-                        Text("\(user.username)@\(user.hostname)")
+                    if showHostmasks || showRealnames || showAccounts {
+                        Text(userDescription(user))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

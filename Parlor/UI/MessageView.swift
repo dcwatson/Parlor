@@ -24,7 +24,7 @@ struct MessageView: View {
         if isCompact {
             VStack(alignment: .leading) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(message.user.nickname)
+                    Text(message.nickname)
                         .bold()
                         .foregroundStyle(Color.accentColor)
                     if showTimestamps && message.timeChanged {
@@ -59,7 +59,7 @@ struct MessageView: View {
                         .foregroundStyle(Color.secondary)
                         .frame(width: 60, alignment: .trailing)
                 }
-                Text(message.user.nickname)
+                Text(message.nickname)
                     .bold()
                     .foregroundStyle(Color.accentColor)
                 Text(message.message)

@@ -15,7 +15,10 @@ struct SettingsView: View {
 
     @AppStorage("showTimestamps") private var showTimestamps = true
     @AppStorage("monospace") private var monospace = true
+
     @AppStorage("showHostmasks") private var showHostmasks = true
+    @AppStorage("showRealnames") private var showRealnames = true
+    @AppStorage("showAccounts") private var showAccounts = true
 
     @AppStorage("playChatSound") private var playChatSound = true
     @AppStorage("mentionNotifications") private var mentionNotifications = false
@@ -52,8 +55,14 @@ struct SettingsView: View {
             Tab("Appearance", systemImage: "macwindow") {
                 Form {
                     Toggle("Show timestamps", isOn: $showTimestamps)
-                    Toggle("Show hostmasks in user lists", isOn: $showHostmasks)
+
                     Toggle("Use monospace font", isOn: $monospace)
+
+                    Section("User List") {
+                        Toggle("Show real name", isOn: $showRealnames)
+                        Toggle("Show hostmask", isOn: $showHostmasks)
+                        Toggle("Show account", isOn: $showAccounts)
+                    }
                 }
             }
             
@@ -71,7 +80,7 @@ struct SettingsView: View {
         }
         #if os(macOS)
             .scenePadding()
-            .frame(width: 350, height: 150)
+            .frame(width: 350, height: 200)
         #endif
     }
 }

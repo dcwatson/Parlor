@@ -68,6 +68,8 @@ struct ChannelView: View {
                 #endif
         }
         .toolbar {
+            ToolbarSpacer(.flexible)
+            
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     showingTopicAlert = true

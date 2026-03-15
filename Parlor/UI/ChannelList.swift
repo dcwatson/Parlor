@@ -90,6 +90,8 @@ struct ChannelList: View {
             refresh()
         }
         .toolbar {
+            ToolbarSpacer(.flexible)
+            
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     refresh()

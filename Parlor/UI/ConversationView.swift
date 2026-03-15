@@ -51,6 +51,8 @@ struct ConversationView: View {
             inputFocused = true
         }
         .toolbar {
+            ToolbarSpacer(.flexible)
+
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     client.removeConversation(conversation)

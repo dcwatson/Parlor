@@ -20,6 +20,7 @@ let REQUEST_CAPS: IRCCapabilities = [
     "userhost-in-names",
     "sasl",
     "account-tag",
+    "account-notify",
     "draft/chathistory",
     // This causes CHATHISTORY to include things like JOIN, PART, NICK, etc.
     "draft/event-playback",
@@ -242,10 +243,21 @@ enum IRCEvent {
             guard let user = getUser(line.source, create: true),
                 let channel = getChannel(line[0], create: true)
             else { return }
+
+            if capabilities.has("extended-join"), let acct = line[1] {
+                user.acctname = acct == "*" ? nil : acct
+                if let realname = line.message {
+                    user.realname = realname
+                }
+            }
+
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
+                // When we join a channel, request the userlist and chat history (if possible)
                 send(.who(mask: channel.name))
-                send(.chathistory(target: channel.name, command: .latest, limit: 500))
+                if capabilities.has("chathistory") {
+                    send(.chathistory(target: channel.name, command: .latest, limit: 500))
+                }
                 eventStream.send(.app(.jumpToChannel(channel)))
             }
         case "PART":
@@ -262,21 +274,22 @@ enum IRCEvent {
             guard let msg = line[0] else { return }
             eventStream.send(.serverError(msg))
         case "PRIVMSG", "NOTICE":
-            guard let user = getUser(line.source, create: true) else { return }
-            let message = IRCMessage(user: user, message: line.message, tags: line.tags)
+            guard let source = line.source, let msg = line.message else { return }
+            let message = IRCMessage(hostmask: source, message: msg, tags: line.tags)
             switch getTarget(line[0]) {
             case .channel(let channel):
                 channel.privmsg(message)
                 // TODO: this should probably be in UI code?
                 if line["batch"] == nil {
-                    let mentioned =
-                        line.message?.lowercased().contains(nickname.lowercased()) ?? false
+                    let mentioned = msg.lowercased().contains(nickname.lowercased())
                     ParlorEvents.chat(message, mentioned: mentioned)
                 }
             case .user(let toUser):
-                if toUser.nickname == nickname, let convo = getConversation(user, create: true) {
+                guard let fromUser = getUser(line.source, create: true) else { return }
+                if toUser.nickname == nickname, let convo = getConversation(fromUser, create: true)
+                {
                     convo.privmsg(message)
-                } else if user.nickname == nickname,
+                } else if fromUser.nickname == nickname,
                     let convo = getConversation(toUser, create: true)
                 {
                     // These are echos of our own PRIVMSG
@@ -297,7 +310,7 @@ enum IRCEvent {
                     try auth.clientCapabilities(client: self)
                 } catch {
                     // TODO: what to do here?
-                    print(error)
+                    eventStream.send(.serverError(error.localizedDescription))
                 }
             case "LS":
                 if let caps = line.message {
@@ -314,8 +327,11 @@ enum IRCEvent {
                 try auth.clientAuthenticate(client: self, line: line)
             } catch {
                 // TODO: what to do here?
-                print(error)
+                eventStream.send(.serverError(error.localizedDescription))
             }
+        case "ACCOUNT":
+            guard let user = getUser(line.source, create: true), let acct = line[0] else { return }
+            user.acctname = acct == "*" ? nil : acct
         default:
             break
         }
@@ -346,7 +362,11 @@ enum IRCEvent {
             if let user = getUser(line[5]) {
                 if let username = line[2] { user.username = username }
                 if let hostname = line[3] { user.hostname = hostname }
-                if let realname = line.message { user.realname = realname }
+                if let realname = line.message {
+                    let reader = StringReader(realname)
+                    let _ = reader.readUntil(" ") // skip past hopcount
+                    user.realname = reader.read()
+                }
             }
         case .list:
             if let channelName = line[1], let count = Int(line[2] ?? "0") {

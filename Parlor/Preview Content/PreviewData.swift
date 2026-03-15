@@ -22,7 +22,7 @@ struct PreviewData: PreviewModifier {
         channel.users = client.users
         channel.privmsg(
             .init(
-                user: beth,
+                hostmask: beth.hostmask,
                 message: "Baltimore Orioles, number one!",
                 tags: [
                     .init(key: "time", value: "2020-02-28T12:54:00.000Z")
@@ -32,7 +32,7 @@ struct PreviewData: PreviewModifier {
         )
         channel.privmsg(
             .init(
-                user: joey,
+                hostmask: joey.hostmask,
                 message: "Shut up Beth",
                 tags: [
                     .init(key: "time", value: "2020-02-28T17:26:00.000Z")

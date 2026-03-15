@@ -13,6 +13,7 @@ import SwiftUI
     var username: String
     var hostname: String
     var realname: String
+    var acctname: String?
 
     var hostmask: String {
         "\(nickname)!\(username)@\(hostname)"
@@ -28,11 +29,18 @@ import SwiftUI
         self.realname = ""
     }
 
-    init(nickname: String, username: String = "", hostname: String = "", realname: String = "") {
+    init(
+        nickname: String,
+        username: String = "",
+        hostname: String = "",
+        realname: String = "",
+        acctname: String? = nil
+    ) {
         self.nickname = nickname
         self.username = username
         self.hostname = hostname
         self.realname = realname
+        self.acctname = acctname
     }
 
     static func == (lhs: IRCUser, rhs: IRCUser) -> Bool {
@@ -46,10 +54,13 @@ import SwiftUI
 
 @Observable class IRCMessage: Identifiable {
     var id: String
-    var user: IRCUser
+    var hostmask: String
+    var nickname: String
+    var acctname: String?
     var message: String
     var tags: IRCTags
     var timestamp: Date
+
     // var type: Type (.message, .notice, .join, .part, etc...)
 
     // These are set when adding to a channel or conversation.
@@ -60,9 +71,11 @@ import SwiftUI
         timeChanged ? timeFormatter.string(from: timestamp) : ""
     }
 
-    init(user: IRCUser, message: String?, tags: IRCTags) {
-        self.user = user
-        self.message = message ?? ""
+    init(hostmask: String, message: String, tags: IRCTags) {
+        self.hostmask = hostmask
+        self.nickname = StringReader(hostmask).readUntil("!")
+        self.acctname = tags["account"]
+        self.message = message
         self.tags = tags
         self.id = tags["msgid"] ?? UUID().uuidString
         if let time = tags["time"], let date = isoDateFormatter.date(from: time) {

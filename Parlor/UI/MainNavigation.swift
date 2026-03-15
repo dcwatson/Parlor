@@ -73,7 +73,6 @@ struct MainNavigation: View {
                         }
                     }
                 }
-
                 #if os(iOS)
                     Button {
                         showingAppSettings = true
@@ -83,48 +82,7 @@ struct MainNavigation: View {
                 #endif
             }
             .listStyle(.sidebar)
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        showingNicknameAlert = true
-                    } label: {
-                        Label("Nickname", systemImage: "person.text.rectangle")
-                    }
-                    .alert("Change Nickname", isPresented: $showingNicknameAlert) {
-                        TextField("New nickname", text: $channelOrNick)
-                        Button("OK") {
-                            if !channelOrNick.isEmpty {
-                                client.nickname = channelOrNick
-                                client.send(.nick(nickname: channelOrNick))
-                            }
-                            channelOrNick = ""
-                        }
-                    }
 
-                    Button {
-                        showingJoinAlert = true
-                    } label: {
-                        Label("Join", systemImage: "plus")
-                    }
-                    .alert("Join/Message", isPresented: $showingJoinAlert) {
-                        TextField("#channel or nickname", text: $channelOrNick)
-                        Button("OK") {
-                            if channelOrNick.hasPrefix("#") {
-                                client.send(.join(channel: channelOrNick))
-                            } else {
-                                if let user = client.getUser(channelOrNick, create: true),
-                                    let convo = client.getConversation(user, create: true)
-                                {
-                                    client.appEvent(.jumpToConversation(convo))
-                                }
-                            }
-                            channelOrNick = ""
-                        }
-                    } message: {
-                        Text("Enter a channel name to join, or a nickname to send a message to.")
-                    }
-                }
-            }
         } detail: {
             switch selection {
             case nil:
@@ -168,6 +126,48 @@ struct MainNavigation: View {
             Button("OK") {}
         } message: { err in
             Text(err)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    showingNicknameAlert = true
+                } label: {
+                    Label("Nickname", systemImage: "person.text.rectangle")
+                }
+                .alert("Change Nickname", isPresented: $showingNicknameAlert) {
+                    TextField("New nickname", text: $channelOrNick)
+                    Button("OK") {
+                        if !channelOrNick.isEmpty {
+                            client.nickname = channelOrNick
+                            client.send(.nick(nickname: channelOrNick))
+                        }
+                        channelOrNick = ""
+                    }
+                }
+
+                Button {
+                    showingJoinAlert = true
+                } label: {
+                    Label("Join", systemImage: "plus")
+                }
+                .alert("Join/Message", isPresented: $showingJoinAlert) {
+                    TextField("#channel or nickname", text: $channelOrNick)
+                    Button("OK") {
+                        if channelOrNick.hasPrefix("#") {
+                            client.send(.join(channel: channelOrNick))
+                        } else {
+                            if let user = client.getUser(channelOrNick, create: true),
+                                let convo = client.getConversation(user, create: true)
+                            {
+                                client.appEvent(.jumpToConversation(convo))
+                            }
+                        }
+                        channelOrNick = ""
+                    }
+                } message: {
+                    Text("Enter a channel name to join, or a nickname to send a message to.")
+                }
+            }
         }
     }
 }

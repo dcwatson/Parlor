@@ -17,7 +17,7 @@ struct ParlorEvents {
             SoundPlayer.play(.custom("click"))
         }
         if mentioned && mentionNotifications {
-            Notifier.notify("notify.mentioned", title: "\(message.user.nickname) mentioned you", body: message.message)
+            Notifier.notify("notify.mentioned", title: "\(message.nickname) mentioned you", body: message.message)
         }
     }
 }
