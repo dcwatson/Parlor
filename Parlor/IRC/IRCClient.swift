@@ -19,6 +19,7 @@ let REQUEST_CAPS: IRCCapabilities = [
     "standard-replies",
     "userhost-in-names",
     "sasl",
+    "setname",
     "account-tag",
     "account-notify",
     "draft/chathistory",
@@ -332,6 +333,11 @@ enum IRCEvent {
         case "ACCOUNT":
             guard let user = getUser(line.source, create: true), let acct = line[0] else { return }
             user.acctname = acct == "*" ? nil : acct
+        case "SETNAME":
+            guard let user = getUser(line.source, create: true), let realname = line.message else {
+                return
+            }
+            user.realname = realname
         default:
             break
         }

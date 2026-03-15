@@ -41,6 +41,7 @@ struct MainNavigation: View {
     @State private var showingError: Bool = false
     @State private var lastError: String? = nil
     @State private var channelOrNick: String = ""
+    @State private var realname: String = ""
 
     var body: some View {
         NavigationSplitView {
@@ -130,18 +131,30 @@ struct MainNavigation: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
+                    channelOrNick = client.nickname
+                    realname = client.realname
                     showingNicknameAlert = true
                 } label: {
                     Label("Nickname", systemImage: "person.text.rectangle")
                 }
                 .alert("Change Nickname", isPresented: $showingNicknameAlert) {
                     TextField("New nickname", text: $channelOrNick)
+                    if client.capabilities.has("setname") {
+                        TextField("New realname", text: $realname)
+                    }
+                    Button("Cancel", role: .cancel) {}
                     Button("OK") {
-                        if !channelOrNick.isEmpty {
+                        if !channelOrNick.isEmpty, channelOrNick != client.nickname {
                             client.nickname = channelOrNick
                             client.send(.nick(nickname: channelOrNick))
                         }
+                        if client.capabilities.has("setname"), !realname.isEmpty,
+                            realname != client.realname
+                        {
+                            client.send(.setname(realname: realname))
+                        }
                         channelOrNick = ""
+                        realname = ""
                     }
                 }
 

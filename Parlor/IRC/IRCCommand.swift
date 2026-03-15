@@ -54,6 +54,7 @@ enum IRCCommand {
 
     case pass(password: String)
     case nick(nickname: String)
+    case setname(realname: String)
     case user(user: String, realname: String)
     case oper(name: String, password: String)
     case quit(message: String)
@@ -88,6 +89,8 @@ enum IRCCommand {
             return .init("PASS", params: [password])
         case .nick(let nickname):
             return .init("NICK", params: [nickname])
+        case .setname(let realname):
+            return .init("SETNAME", params: [realname])
         case .user(let user, let realname):
             return .init("USER", params: [user, "0", "*", realname])
         case .oper(let name, let password):
