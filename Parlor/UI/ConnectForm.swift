@@ -7,16 +7,27 @@
 
 import SwiftUI
 
+enum AuthMethod: String, CaseIterable, Identifiable {
+    case none
+    case serverPassword
+    case saslAny
+    case saslScram
+
+    var id: Self { self }
+}
+
 struct ConnectForm: View {
     @Environment(IRCClient.self) var client
 
     @AppStorage("address") private var address: String = "localhost"
     @AppStorage("port") private var port: String = "6667"
     @AppStorage("tls") private var tls: Bool = false
-    @AppStorage("nickname") private var nickname = "Beth"
-    @AppStorage("username") private var username = "parlor"
-    @AppStorage("realname") private var realname = "Parlor User"
+    @AppStorage("nickname") private var nickname = NSUserName()
+    @AppStorage("ident") private var ident = "parlor"
+    @AppStorage("realname") private var realname = NSFullUserName()
+    @AppStorage("username") private var username = NSUserName()
     @AppStorage("password") private var password: String = ""
+    @AppStorage("authMethod") private var authMethod: AuthMethod = .none
 
     var body: some View {
         Form {
@@ -28,16 +39,46 @@ struct ConnectForm: View {
 
             Section {
                 TextField("Nickname", text: $nickname)
-                TextField("Username", text: $username)
+                TextField("Ident", text: $ident)
                 TextField("Real name", text: $realname)
-                SecureField("Password", text: $password)
+            }
+
+            Section {
+                Picker("Authentication", selection: $authMethod) {
+                    Text("None").tag(AuthMethod.none)
+                    Text("Server Password (PASS)").tag(AuthMethod.serverPassword)
+                    Text("SASL (SCRAM-SHA-*, PLAIN)").tag(AuthMethod.saslAny)
+                    Text("SASL (SCRAM only)").tag(AuthMethod.saslScram)
+                }
+                .pickerStyle(.inline)
+                .padding(.top, 12)
+
+                Group {
+                    if authMethod != .none {
+                        if authMethod != .serverPassword {
+                            TextField("Username", text: $username)
+                        }
+                        SecureField("Password", text: $password)
+                    }
+                }
             }
 
             Button("Connect") {
                 client.nickname = nickname
-                client.username = username
+                client.identity = ident
                 client.realname = realname
+                client.username = username
                 client.password = password
+                switch authMethod {
+                case .none:
+                    client.auth = NoAuth()
+                case .serverPassword:
+                    client.auth = PasswordAuth()
+                case .saslAny:
+                    client.auth = SASLAuth(allowPlain: true)
+                case .saslScram:
+                    client.auth = SASLAuth(allowPlain: false)
+                }
                 client.connect(address, port: UInt16(port)!, useTLS: tls)
             }
         }

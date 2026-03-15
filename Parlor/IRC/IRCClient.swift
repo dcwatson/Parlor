@@ -56,12 +56,13 @@ enum IRCEvent {
         case unspecified
     }
 
-    var nickname: String = "Beth"
-    var realname: String = "Parlor User"
-    var username: String = "parlor"
+    var nickname: String = NSUserName()
+    var identity: String = NSUserName()
+    var realname: String = NSFullUserName()
+    var username: String = ""
     var password: String = ""
 
-    var auth: IRCAuthentication = SASLPlain()
+    var auth: IRCAuthentication = NoAuth()
 
     var connected: Bool = false
     var supports: [String: String] = [:]
@@ -96,6 +97,10 @@ enum IRCEvent {
 
     func connect(_ host: String, port: UInt16 = 6667, useTLS: Bool = false) {
         conn.connect(host, port: port, useTLS: useTLS)
+    }
+
+    func disconnect() {
+        conn.close()
     }
 
     func send(_ command: IRCCommand) {
@@ -185,7 +190,7 @@ enum IRCEvent {
             auth.clientConnected(client: self)
             send(.capLS(version: 302))
             send(.nick(nickname: nickname))
-            send(.user(user: username, realname: realname))
+            send(.user(user: identity, realname: realname))
             connected = true
             eventStream.send(.connected)
         case .disconnected:
@@ -240,7 +245,7 @@ enum IRCEvent {
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
                 send(.who(mask: channel.name))
-                send(.chathistory(target: channel.name, command: .latest, limit: 50))
+                send(.chathistory(target: channel.name, command: .latest, limit: 500))
                 eventStream.send(.app(.jumpToChannel(channel)))
             }
         case "PART":
@@ -288,7 +293,12 @@ enum IRCEvent {
                 if let caps = line.message {
                     capabilities.ack(.init(caps))
                 }
-                auth.clientCapabilities(client: self)
+                do {
+                    try auth.clientCapabilities(client: self)
+                } catch {
+                    // TODO: what to do here?
+                    print(error)
+                }
             case "LS":
                 if let caps = line.message {
                     availableCapabilities.ack(.init(caps))
@@ -300,7 +310,12 @@ enum IRCEvent {
                 break
             }
         case "AUTHENTICATE":
-            auth.clientAuthenticate(client: self, line: line)
+            do {
+                try auth.clientAuthenticate(client: self, line: line)
+            } catch {
+                // TODO: what to do here?
+                print(error)
+            }
         default:
             break
         }

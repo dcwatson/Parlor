@@ -14,6 +14,9 @@ struct ContentView: View {
         if client.connected {
             MainNavigation()
                 .environment(client)
+                .onDisappear {
+                    client.disconnect()
+                }
         } else {
             ConnectForm()
                 .environment(client)
