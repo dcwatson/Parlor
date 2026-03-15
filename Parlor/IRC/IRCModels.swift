@@ -64,6 +64,7 @@ import SwiftUI
     // var type: Type (.message, .notice, .join, .part, etc...)
 
     // These are set when adding to a channel or conversation.
+    var nickChanged: Bool = true
     var dateChanged: Bool = false
     var timeChanged: Bool = false
 
@@ -139,6 +140,7 @@ import SwiftUI
 
     func privmsg(_ message: IRCMessage, sendEvent: Bool = true) {
         if let lastMessage = messages.last {
+            message.nickChanged = lastMessage.nickname != message.nickname
             message.dateChanged = message.timestamp.dateChanged(since: lastMessage.timestamp)
             message.timeChanged = message.timestamp.timeChanged(since: lastMessage.timestamp)
         }
@@ -146,6 +148,7 @@ import SwiftUI
         while messages.count > messageLimit {
             messages.removeFirst()
         }
+        messages.first!.nickChanged = true
         messages.first!.dateChanged = true
         messages.first!.timeChanged = true
         if sendEvent {

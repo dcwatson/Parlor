@@ -255,7 +255,12 @@ enum IRCEvent {
             channel.join(user, sendEvent: user.nickname != nickname)
             if user.nickname == nickname {
                 // When we join a channel, request the userlist and chat history (if possible)
-                send(.who(mask: channel.name))
+                if supports.keys.contains("WHOX") {
+                    send(.whox(mask: channel.name, fields: "uhnfar"))
+                }
+                else {
+                    send(.who(mask: channel.name))
+                }
                 if capabilities.has("chathistory") {
                     send(.chathistory(target: channel.name, command: .latest, limit: 500))
                 }
@@ -372,6 +377,19 @@ enum IRCEvent {
                     let reader = StringReader(realname)
                     let _ = reader.readUntil(" ") // skip past hopcount
                     user.realname = reader.read()
+                }
+            }
+        case.whoxreply:
+            // https://ircv3.net/specs/extensions/whox
+            // uhnfar -> <client> [user] [host] [nick] [flags] [acct] :[realname]
+            if let user = getUser(line[3]) {
+                if let username = line[1] { user.username = username }
+                if let hostname = line[2] { user.hostname = hostname }
+                if let acctname = line[5] {
+                    user.acctname = acctname == "0" ? nil : acctname
+                }
+                if let realname = line.message {
+                    user.realname = realname
                 }
             }
         case .list:

@@ -23,24 +23,26 @@ struct MessageView: View {
     var body: some View {
         if isCompact {
             VStack(alignment: .leading) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(message.nickname)
-                        .bold()
-                        .foregroundStyle(Color.accentColor)
-                    if showTimestamps && message.timeChanged {
-                        Text(timeFormatter.string(from: message.timestamp))
-                            .font(.caption)
-                            .foregroundStyle(Color.secondary)
+                if message.nickChanged || (showTimestamps && message.timeChanged) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(message.nickname)
+                            .bold()
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.top, 5)
+                        if showTimestamps && message.timeChanged {
+                            Text(timeFormatter.string(from: message.timestamp))
+                                .font(.caption)
+                                .foregroundStyle(Color.secondary)
+                        }
+                        Spacer()
                     }
-                    Spacer()
                 }
-                
+
                 Text(message.message)
             }
             .monospaced(monospace)
             .textSelection(.enabled)
-        }
-        else {
+        } else {
             if message.dateChanged {
                 HStack {
                     Spacer()
@@ -76,6 +78,7 @@ struct MessageView: View {
     VStack(alignment: .leading) {
         MessageView(message: client.channels[0].messages[0])
         MessageView(message: client.channels[0].messages[1])
+        MessageView(message: client.channels[0].messages[2])
     }
-        .padding()
+    .padding()
 }

@@ -51,7 +51,7 @@ struct ConnectForm: View {
                     Text("SASL (SCRAM only)").tag(AuthMethod.saslScram)
                 }
                 .pickerStyle(.inline)
-                .padding(.top, 12)
+                //.padding(.top, 12)
 
                 Group {
                     if authMethod != .none {

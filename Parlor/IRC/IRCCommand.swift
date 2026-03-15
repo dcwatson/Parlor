@@ -18,7 +18,7 @@ enum ChatHistorySince {
     case timestamp(Date)
     case msgid(String)
     case all
-    
+
     var stringValue: String {
         switch self {
         case .timestamp(let date):
@@ -35,7 +35,7 @@ enum ChatHistoryCommand {
     case before(ChatHistorySince)
     case after(ChatHistorySince)
     case latest
-    
+
     func toParams(_ target: String, limit: Int) -> [String] {
         switch self {
         case .before(let since):
@@ -61,6 +61,7 @@ enum IRCCommand {
     case join(channel: String, password: String? = nil)
     case part(channel: String)
     case who(mask: String)
+    case whox(mask: String, fields: String)
     case topic(channel: String, topic: String)
 
     case privmsg(target: String, message: String)
@@ -99,6 +100,8 @@ enum IRCCommand {
             return .init("QUIT", params: [message])
         case .who(let mask):
             return .init("WHO", params: [mask])
+        case .whox(let mask, let fields):
+            return .init("WHO", params: [mask, "%" + fields])
         case .part(let channel):
             return .init("PART", params: [channel])
         case .topic(let channel, let topic):

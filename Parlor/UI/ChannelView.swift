@@ -34,7 +34,7 @@ struct ChannelView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
+            LazyVStack(alignment: .leading, spacing: 5) {
                 ForEach(channel.messages) { message in
                     MessageView(message: message)
                 }

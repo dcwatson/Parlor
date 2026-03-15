@@ -95,6 +95,9 @@ enum IRCReply: Int {
     case localusers = 265
     case globalusers = 266
 
+    // https://ircv3.net/specs/extensions/whox
+    case whoxreply = 354
+
     // https://ircv3.net/specs/extensions/sasl-3.1
     case loggedin = 900
     case loggedout = 901

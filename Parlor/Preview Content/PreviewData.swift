@@ -40,6 +40,16 @@ struct PreviewData: PreviewModifier {
             ),
             sendEvent: false
         )
+        channel.privmsg(
+            .init(
+                hostmask: joey.hostmask,
+                message: "Second grouped line with a lot more text in it (hopefully wrapping to second line)",
+                tags: [
+                    .init(key: "time", value: "2020-02-28T17:26:30.000Z")
+                ]
+            ),
+            sendEvent: false
+        )
         client.channels = [channel]
         client.log = [
             IRCLine("NICK", params: ["Beth"]),
