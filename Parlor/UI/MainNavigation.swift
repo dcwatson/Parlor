@@ -38,6 +38,8 @@ struct MainNavigation: View {
     @State private var showingAppSettings: Bool = false
     @State private var showingJoinAlert: Bool = false
     @State private var showingNicknameAlert: Bool = false
+    @State private var showingError: Bool = false
+    @State private var lastError: String? = nil
     @State private var channelOrNick: String = ""
 
     var body: some View {
@@ -98,7 +100,7 @@ struct MainNavigation: View {
                             channelOrNick = ""
                         }
                     }
-                    
+
                     Button {
                         showingJoinAlert = true
                     } label: {
@@ -142,8 +144,12 @@ struct MainNavigation: View {
             }
         }
         .onReceive(client.events) { event in
-            if case .app(let event) = event {
-                switch event {
+            switch event {
+            case .serverError(let msg):
+                lastError = msg
+                showingError = true
+            case .app(let appEvent):
+                switch appEvent {
                 case .popNavigation:
                     selection = nil
                 case .jumpToChannel(let channel):
@@ -151,10 +157,17 @@ struct MainNavigation: View {
                 case .jumpToConversation(let conversation):
                     selection = .conversation(conversation)
                 }
+            default:
+                break
             }
         }
         .sheet(isPresented: $showingAppSettings) {
             SettingsView()
+        }
+        .alert("Error", isPresented: $showingError, presenting: lastError) { err in
+            Button("OK") {}
+        } message: { err in
+            Text(err)
         }
     }
 }

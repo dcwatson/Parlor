@@ -18,6 +18,11 @@ struct IRCCapability: Identifiable {
         return "\(vendor)/\(name)"
     }
 
+    var values: [String] {
+        guard let value else { return [] }
+        return value.components(separatedBy: ",")
+    }
+
     var stringValue: String {
         var cap = ""
         if let vendor {

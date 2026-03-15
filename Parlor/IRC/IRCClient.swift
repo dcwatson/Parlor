@@ -18,6 +18,8 @@ let REQUEST_CAPS: IRCCapabilities = [
     "server-time",
     "standard-replies",
     "userhost-in-names",
+    "sasl",
+    "account-tag",
     "draft/chathistory",
     // This causes CHATHISTORY to include things like JOIN, PART, NICK, etc.
     "draft/event-playback",
@@ -58,6 +60,8 @@ enum IRCEvent {
     var realname: String = "Parlor User"
     var username: String = "parlor"
     var password: String = ""
+
+    var auth: IRCAuthentication = SASLPlain()
 
     var connected: Bool = false
     var supports: [String: String] = [:]
@@ -178,9 +182,7 @@ enum IRCEvent {
     private func connectionStateChanged(_ state: IRCConnection.State) {
         switch state {
         case .connected:
-            if !password.isEmpty {
-                send(.pass(password: password))
-            }
+            auth.clientConnected(client: self)
             send(.capLS(version: 302))
             send(.nick(nickname: nickname))
             send(.user(user: username, realname: realname))
@@ -286,7 +288,7 @@ enum IRCEvent {
                 if let caps = line.message {
                     capabilities.ack(.init(caps))
                 }
-                send(.capEND)
+                auth.clientCapabilities(client: self)
             case "LS":
                 if let caps = line.message {
                     availableCapabilities.ack(.init(caps))
@@ -297,6 +299,8 @@ enum IRCEvent {
             default:
                 break
             }
+        case "AUTHENTICATE":
+            auth.clientAuthenticate(client: self, line: line)
         default:
             break
         }
@@ -339,6 +343,8 @@ enum IRCEvent {
             if let channel = getChannel(line[1]), let topic = line.message {
                 channel.topic = topic
             }
+        case .loggedin, .loggedout, .saslsuccess:
+            auth.clientReply(client: self, reply: reply, line: line)
         default:
             break
         }
@@ -349,7 +355,12 @@ enum IRCEvent {
         case .nicknameinuse:
             nickname = nickname + "_"
             send(.nick(nickname: nickname))
+        case .saslfail, .saslaborted, .saslalready, .sasltoolong:
+            auth.clientError(client: self, error: err, line: line)
         default:
+            if let msg = line.message {
+                eventStream.send(.serverError(msg))
+            }
             break
         }
     }

@@ -22,26 +22,26 @@ struct ConversationView: View {
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
-                    ForEach(conversation.messages) { message in
-                        MessageView(message: message)
-                    }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: isCompact ? 15 : 5) {
+                ForEach(conversation.messages) { message in
+                    MessageView(message: message)
                 }
-                .padding()
             }
-            .background(.background)
-            .defaultScrollAnchor(.bottom)
-
-            TextField("Message \(conversation.user.nickname)", text: $inputText)
-                .padding(10)
-                .textFieldStyle(.plain)
-                .focused($inputFocused)
-                .onSubmit {
-                    client.send(.privmsg(target: conversation.user.nickname, message: inputText))
-                    inputText = ""
-                }
+            .padding()
+        }
+        .background(.background)
+        .defaultScrollAnchor(.bottom)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 80)
+        }
+        .overlay(alignment: .bottom) {
+            InputView(placeholder: "Message \(conversation.user.nickname)", text: $inputText) {
+                text in
+                client.send(.privmsg(target: conversation.user.nickname, message: text))
+                inputText = ""
+            }
         }
         .navigationTitle(conversation.user.nickname)
         #if os(iOS)
@@ -65,4 +65,5 @@ struct ConversationView: View {
 
 #Preview(traits: .modifier(PreviewData())) {
     ConversationView()
+        .environment(IRCConversation(user: .init("SomeGuy!user@host.com")))
 }

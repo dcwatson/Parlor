@@ -47,6 +47,9 @@ struct PreviewData: PreviewModifier {
             IRCLine("PING", params: ["3205B4D3"]),
         ]
         client.log[2].outgoing = false
+        client.conversations = [
+            .init(user: beth),
+        ]
         return PreviewEnvironment(client: client, channel: channel)
     }
 

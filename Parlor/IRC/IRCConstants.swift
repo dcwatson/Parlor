@@ -94,6 +94,12 @@ enum IRCReply: Int {
     case tryagain = 263
     case localusers = 265
     case globalusers = 266
+
+    // https://ircv3.net/specs/extensions/sasl-3.1
+    case loggedin = 900
+    case loggedout = 901
+    case saslsuccess = 903
+    case saslmechs = 908
 }
 
 enum IRCError: Int {
@@ -150,4 +156,11 @@ enum IRCError: Int {
     case nooperhost = 491
     case umodeunknownflag = 501
     case usersdontmatch = 502
+
+    // https://ircv3.net/specs/extensions/sasl-3.1
+    case nicklocked = 902
+    case saslfail = 904
+    case sasltoolong = 905
+    case saslaborted = 906
+    case saslalready = 907
 }

@@ -64,7 +64,7 @@ struct ChannelView: View {
         .inspector(isPresented: $showingUsers) {
             UserList()
                 #if os(macOS)
-                    .inspectorColumnWidth(min: 200, ideal: 200, max: 400)
+                    .inspectorColumnWidth(min: 200, ideal: 250, max: 400)
                 #endif
         }
         .toolbar {

@@ -69,6 +69,8 @@ enum IRCCommand {
     case capREQ(capabilities: IRCCapabilities)
     case capEND
 
+    case authenticate(data: String)
+
     case chathistory(target: String, command: ChatHistoryCommand, limit: Int)
 
     case custom(command: String, params: [String] = [])
@@ -110,6 +112,9 @@ enum IRCCommand {
             return .init("CAP", params: ["REQ", capabilities.stringValue])
         case .capEND:
             return .init("CAP", params: ["END"])
+
+        case .authenticate(let data):
+            return .init("AUTHENTICATE", params: [data])
 
         case .chathistory(let target, let command, let limit):
             return .init("CHATHISTORY", params: command.toParams(target, limit: limit))
