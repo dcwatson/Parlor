@@ -15,7 +15,7 @@ struct SettingsView: View {
 
     @AppStorage("showTimestamps") private var showTimestamps = true
     @AppStorage("monospace") private var monospace = true
-
+    @AppStorage("showInlineImages") private var showInlineImages = true
     @AppStorage("showHostmasks") private var showHostmasks = true
     @AppStorage("showRealnames") private var showRealnames = true
     @AppStorage("showAccounts") private var showAccounts = true
@@ -55,8 +55,8 @@ struct SettingsView: View {
             Tab("Appearance", systemImage: "macwindow") {
                 Form {
                     Toggle("Show timestamps", isOn: $showTimestamps)
-
                     Toggle("Use monospace font", isOn: $monospace)
+                    Toggle("Show inline images", isOn: $showInlineImages)
 
                     Section("User List") {
                         Toggle("Show real name", isOn: $showRealnames)

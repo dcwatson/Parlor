@@ -28,6 +28,7 @@
 				IRC/IRCConstants.swift,
 				IRC/IRCTypes.swift,
 				Utils/DateUtils.swift,
+				Utils/ImageUtils.swift,
 				Utils/Notifier.swift,
 				Utils/SoundPlayer.swift,
 				Utils/StringReader.swift,

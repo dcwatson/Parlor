@@ -43,7 +43,7 @@ struct PreviewData: PreviewModifier {
         channel.privmsg(
             .init(
                 hostmask: joey.hostmask,
-                message: "Second grouped line with a lot more text in it (hopefully wrapping to second line)",
+                message: "Second grouped line with a **lot more** text in it (hopefully wrapping to second line) and an image! https://temp.io/crvxabv9pxdw/view/alsalsadiol.jpg",
                 tags: [
                     .init(key: "time", value: "2020-02-28T17:26:30.000Z")
                 ]

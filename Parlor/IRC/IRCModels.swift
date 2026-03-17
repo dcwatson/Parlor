@@ -52,7 +52,7 @@ import SwiftUI
     }
 }
 
-@Observable class IRCMessage: Identifiable {
+@Observable class IRCMessage: Identifiable, Equatable {
     var id: String
     var hostmask: String
     var nickname: String
@@ -61,7 +61,16 @@ import SwiftUI
     var tags: IRCTags
     var timestamp: Date
 
-    // var type: Type (.message, .notice, .join, .part, etc...)
+    var imageUrls: [URL] = []
+    var needsUrlDetection: Bool = true
+
+    static func == (lhs: IRCMessage, rhs: IRCMessage) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    static let linkDetector: NSDataDetector = {
+        return try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    }()
 
     // These are set when adding to a channel or conversation.
     var nickChanged: Bool = true
@@ -84,6 +93,42 @@ import SwiftUI
         } else {
             self.timestamp = .now
         }
+    }
+
+    func detectUrls() async {
+        guard needsUrlDetection else { return }
+
+        imageUrls = await withTaskGroup(of: Int?.self) { group in
+            var allUrls: [URL] = []
+
+            for (index, match) in Self.linkDetector.matches(
+                in: message,
+                options: [],
+                range: NSRange(message.startIndex..<message.endIndex, in: message)
+            ).enumerated() {
+                guard let range = Range(match.range, in: message) else { continue }
+                if let url = URL(string: String(message[range])) {
+                    allUrls.append(url)
+                    group.addTask {
+                        if let ct = await fetchContentType(url) {
+                            if ct.hasPrefix("image/") && !ct.hasSuffix("xml") {
+                                // Tasks return an index so we can retain link order
+                                return index
+                            }
+                        }
+                        return nil
+                    }
+                }
+            }
+
+            // This waits for all tasks in the group to finish and gathers the non-nil results.
+            let indicies: [Int] = await group.reduce(into: []) { res, elem in
+                if let elem { res.append(elem) }
+            }
+
+            return indicies.sorted().map { allUrls[$0] }
+        }
+        needsUrlDetection = false
     }
 }
 

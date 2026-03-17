@@ -23,6 +23,8 @@ struct ChannelView: View {
     @State private var inputText: String = ""
     @State private var showingTopicAlert: Bool = false
     @State private var newTopic: String = ""
+    @State private var position: ScrollPosition = .init(idType: IRCMessage.ID.self)
+    @State private var isNearBottom: Bool = true
 
     @FocusState private var inputFocused: Bool
 
@@ -34,19 +36,33 @@ struct ChannelView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 5) {
+            LazyVStack(alignment: .leading, spacing: 3) {
                 ForEach(channel.messages) { message in
                     MessageView(message: message)
                 }
             }
             .padding()
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear
-                .frame(height: 80)
+            .scrollTargetLayout()
         }
         .background(.background)
         .defaultScrollAnchor(.bottom)
+        .scrollPosition($position, anchor: .bottom)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            let contentBottom =
+                geometry.contentOffset.y
+                + geometry.containerSize.height
+                + geometry.contentInsets.bottom
+
+            return geometry.contentSize.height - contentBottom
+        } action: { oldValue, newValue in
+            isNearBottom = newValue < 70.0
+        }
+        .safeAreaPadding(.bottom, 70)
+        .onChange(of: channel.messages.last) {
+            if isNearBottom {
+                position.scrollTo(edge: .bottom)
+            }
+        }
         .overlay(alignment: .bottom) {
             InputView(placeholder: "Message \(channel.name)", text: $inputText) { text in
                 client.send(.privmsg(target: channel.name, message: text))
@@ -69,7 +85,7 @@ struct ChannelView: View {
         }
         .toolbar {
             ToolbarSpacer(.flexible)
-            
+
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
                     showingTopicAlert = true
