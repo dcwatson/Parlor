@@ -20,6 +20,7 @@ extension String {
     }
 }
 
+@MainActor
 protocol IRCAuthentication {
     func clientConnected(client: IRCClient)
     func clientCapabilities(client: IRCClient) throws

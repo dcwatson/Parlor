@@ -7,20 +7,26 @@
 
 import UserNotifications
 
+@MainActor
 struct Notifier {
     static private var hasPermission: Bool = false
 
     static func checkPermission() {
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
-            hasPermission = settings.authorizationStatus == .authorized
+            let hasPerm = settings.authorizationStatus == .authorized
+            Task { @MainActor in
+                hasPermission = hasPerm
+            }
         }
     }
 
     static func requestPermission() {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            hasPermission = granted
+            Task { @MainActor in
+                hasPermission = granted
+            }
         }
     }
 

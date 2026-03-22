@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@MainActor
 enum NavSelection: Hashable {
     case console
     case channels
@@ -102,7 +103,7 @@ struct MainNavigation: View {
                     .environment(conversation)
             }
         }
-        .onReceive(client.events) { event in
+        .stream(client.events) { event in
             switch event {
             case .serverError(let msg):
                 lastError = msg

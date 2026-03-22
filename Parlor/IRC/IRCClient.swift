@@ -5,7 +5,6 @@
 //  Created by Daniel Watson on 11/20/24.
 //
 
-import Combine
 import SwiftUI
 
 let REQUEST_CAPS: IRCCapabilities = [
@@ -51,7 +50,9 @@ enum IRCEvent {
     case app(AppEvent)
 }
 
-@Observable class IRCClient {
+@MainActor
+@Observable
+final class IRCClient {
     enum Target {
         case channel(IRCChannel)
         case user(IRCUser)
@@ -78,22 +79,30 @@ enum IRCEvent {
 
     var supportsTags: Bool { capabilities.has("message-tags") }
 
-    @ObservationIgnored var events: AnyPublisher<IRCEvent, Never>
+    @ObservationIgnored var events = Streamer<IRCEvent>()
 
     @ObservationIgnored private var conn: IRCConnection = .init()
-    @ObservationIgnored private var lineStream: AnyCancellable? = nil
-    @ObservationIgnored private var stateStream: AnyCancellable? = nil
-    @ObservationIgnored private var eventStream = PassthroughSubject<IRCEvent, Never>()
 
     @ObservationIgnored @AppStorage("consoleLimit") private var consoleLimit = 10000
 
     init() {
-        events = eventStream.eraseToAnyPublisher()
-        lineStream = conn.lines.sink { line in
-            self.lineReceived(line)
-        }
-        stateStream = conn.$state.sink { state in
-            self.connectionStateChanged(state)
+        Task {
+            for await event in conn.events.stream {
+                switch event {
+                case .connected:
+                    auth.clientConnected(client: self)
+                    send(.capLS(version: 302))
+                    send(.nick(nickname: nickname))
+                    send(.user(user: identity, realname: realname))
+                    connected = true
+                    events.broadcast(.connected)
+                case .disconnected:
+                    connected = false
+                    events.broadcast(.disconnected)
+                case .lineReceived(let line):
+                    lineReceived(line)
+                }
+            }
         }
     }
 
@@ -106,9 +115,11 @@ enum IRCEvent {
     }
 
     func send(_ command: IRCCommand) {
-        let line = command.toLine()
-        conn.write(line, includeTags: supportsTags)
-        logLine(line)
+        Task {
+            let line = command.toLine()
+            try await conn.write(line, includeTags: supportsTags)
+            logLine(line)
+        }
     }
 
     private func logLine(_ line: IRCLine) {
@@ -119,7 +130,7 @@ enum IRCEvent {
     }
 
     func appEvent(_ event: AppEvent) {
-        eventStream.send(.app(event))
+        events.broadcast(.app(event))
     }
 
     func getUser<S: StringProtocol>(_ nickOrMask: S?, create: Bool = false) -> IRCUser? {
@@ -186,29 +197,12 @@ enum IRCEvent {
         return .unspecified
     }
 
-    private func connectionStateChanged(_ state: IRCConnection.State) {
-        switch state {
-        case .connected:
-            auth.clientConnected(client: self)
-            send(.capLS(version: 302))
-            send(.nick(nickname: nickname))
-            send(.user(user: identity, realname: realname))
-            connected = true
-            eventStream.send(.connected)
-        case .disconnected:
-            connected = false
-            eventStream.send(.disconnected)
-        default:
-            break
-        }
-    }
-
     private func lineReceived(_ line: IRCLine) {
         // Ignore RPL_LIST items for now, since there can be thousands of them.
         if line.command != "322" {
             logLine(line)
         }
-        eventStream.send(.line(line))
+        events.broadcast(.line(line))
 
         if let number = Int(line.command) {
             if let reply = IRCReply(rawValue: number) {
@@ -233,13 +227,13 @@ enum IRCEvent {
         case "NICK":
             guard let user = getUser(line.source), let newNick = line[0] else { return }
             user.nickname = newNick
-            eventStream.send(.nickChanged(user, newNick))
+            events.broadcast(.nickChanged(user, newNick))
         case "QUIT":
             guard let user = getUser(line.source) else { return }
             for channel in channels {
                 channel.part(user, sendEvent: false)
             }
-            eventStream.send(.userQuit(user, line.message))
+            events.broadcast(.userQuit(user, line.message))
         case "JOIN":
             guard let user = getUser(line.source, create: true),
                 let channel = getChannel(line[0], create: true)
@@ -264,7 +258,7 @@ enum IRCEvent {
                 if capabilities.has("chathistory") {
                     send(.chathistory(target: channel.name, command: .latest, limit: 500))
                 }
-                eventStream.send(.app(.jumpToChannel(channel)))
+                events.broadcast(.app(.jumpToChannel(channel)))
             }
         case "PART":
             guard let user = getUser(line.source), let channel = getChannel(line[0]) else { return }
@@ -278,7 +272,7 @@ enum IRCEvent {
             }
         case "ERROR":
             guard let msg = line[0] else { return }
-            eventStream.send(.serverError(msg))
+            events.broadcast(.serverError(msg))
         case "PRIVMSG", "NOTICE":
             guard let source = line.source, let msg = line.message else { return }
             let message = IRCMessage(hostmask: source, message: msg, tags: line.tags)
@@ -316,7 +310,7 @@ enum IRCEvent {
                     try auth.clientCapabilities(client: self)
                 } catch {
                     // TODO: what to do here?
-                    eventStream.send(.serverError(error.localizedDescription))
+                    events.broadcast(.serverError(error.localizedDescription))
                 }
             case "LS":
                 if let caps = line.message {
@@ -333,7 +327,7 @@ enum IRCEvent {
                 try auth.clientAuthenticate(client: self, line: line)
             } catch {
                 // TODO: what to do here?
-                eventStream.send(.serverError(error.localizedDescription))
+                events.broadcast(.serverError(error.localizedDescription))
             }
         case "ACCOUNT":
             guard let user = getUser(line.source, create: true), let acct = line[0] else { return }
@@ -351,7 +345,7 @@ enum IRCEvent {
     private func handleReply(_ reply: IRCReply, line: IRCLine) {
         switch reply {
         case .welcome:
-            eventStream.send(.welcome(line[0] ?? ""))
+            events.broadcast(.welcome(line[0] ?? ""))
         case .isupport:
             for (idx, param) in line.params.enumerated() {
                 if (idx == 0) || (idx >= line.params.count - 1) { continue }
@@ -394,10 +388,10 @@ enum IRCEvent {
             }
         case .list:
             if let channelName = line[1], let count = Int(line[2] ?? "0") {
-                eventStream.send(.channelList(channelName, count, line[3] ?? ""))
+                events.broadcast(.channelList(channelName, count, line[3] ?? ""))
             }
         case .listend:
-            eventStream.send(.channelListEnd)
+            events.broadcast(.channelListEnd)
         case .topic:
             if let channel = getChannel(line[1]), let topic = line.message {
                 channel.topic = topic
@@ -418,7 +412,7 @@ enum IRCEvent {
             auth.clientError(client: self, error: err, line: line)
         default:
             if let msg = line.message {
-                eventStream.send(.serverError(msg))
+                events.broadcast(.serverError(msg))
             }
             break
         }

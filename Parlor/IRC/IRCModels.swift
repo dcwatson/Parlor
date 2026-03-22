@@ -5,10 +5,11 @@
 //  Created by Daniel Watson on 12/1/24.
 //
 
-import Combine
 import SwiftUI
 
-@Observable class IRCUser: Identifiable, Hashable {
+@MainActor
+@Observable
+final class IRCUser: Identifiable, Hashable {
     var nickname: String
     var username: String
     var hostname: String
@@ -52,7 +53,9 @@ import SwiftUI
     }
 }
 
-@Observable class IRCMessage: Identifiable, Equatable {
+@MainActor
+@Observable
+class IRCMessage: Identifiable, Equatable {
     var id: String
     var hostmask: String
     var nickname: String
@@ -121,18 +124,20 @@ import SwiftUI
                 }
             }
 
-            // This waits for all tasks in the group to finish and gathers the non-nil results.
-            let indicies: [Int] = await group.reduce(into: []) { res, elem in
-                if let elem { res.append(elem) }
+            var indices: [Int] = []
+            for await idx in group {
+                if let idx { indices.append(idx) }
             }
 
-            return indicies.sorted().map { allUrls[$0] }
+            return indices.sorted().map { allUrls[$0] }
         }
         needsUrlDetection = false
     }
 }
 
-@Observable class IRCChannel: Identifiable, Hashable {
+@MainActor
+@Observable
+final class IRCChannel: Identifiable, Hashable {
     enum Event {
         case userJoined(IRCUser)
         case userParted(IRCUser, String?)
@@ -150,14 +155,12 @@ import SwiftUI
         users.sorted(by: { $0.nickname.lowercased() < $1.nickname.lowercased() })
     }
 
-    @ObservationIgnored var events: AnyPublisher<Event, Never>
-    @ObservationIgnored private var eventStream = PassthroughSubject<Event, Never>()
+    @ObservationIgnored var events = Streamer<Event>()
     @ObservationIgnored @AppStorage("messageLimit") private var messageLimit = 1000
 
     init(_ name: String, topic: String = "") {
         self.name = name
         self.topic = topic
-        self.events = eventStream.eraseToAnyPublisher()
     }
 
     static func == (lhs: IRCChannel, rhs: IRCChannel) -> Bool {
@@ -172,14 +175,14 @@ import SwiftUI
         if users.contains(user) { return }
         users.append(user)
         if sendEvent {
-            eventStream.send(.userJoined(user))
+            events.broadcast(.userJoined(user))
         }
     }
 
     func part(_ user: IRCUser, reason: String? = nil, sendEvent: Bool = true) {
         users.removeAll(where: { $0.nickname == user.nickname })
         if sendEvent {
-            eventStream.send(.userParted(user, reason))
+            events.broadcast(.userParted(user, reason))
         }
     }
 
@@ -197,12 +200,14 @@ import SwiftUI
         messages.first!.dateChanged = true
         messages.first!.timeChanged = true
         if sendEvent {
-            eventStream.send(.message(message))
+            events.broadcast(.message(message))
         }
     }
 }
 
-@Observable class IRCConversation: Identifiable, Hashable {
+@MainActor
+@Observable
+final class IRCConversation: Identifiable, Hashable {
     var user: IRCUser
     var messages: [IRCMessage] = []
 

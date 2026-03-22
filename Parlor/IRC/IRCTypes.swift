@@ -155,7 +155,9 @@ extension IRCTags {
     }
 }
 
-class IRCLine: Identifiable {
+struct IRCLine: Identifiable {
+    var id = UUID()
+    
     var tags: IRCTags
     var source: String?
     var command: String

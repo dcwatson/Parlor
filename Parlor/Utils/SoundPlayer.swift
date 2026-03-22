@@ -11,6 +11,7 @@ enum Sound {
     case custom(String)
 }
 
+@MainActor
 struct SoundPlayer {
     static var playerCache: [String: AVAudioPlayer] = [:]
 

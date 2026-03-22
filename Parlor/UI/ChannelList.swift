@@ -100,7 +100,7 @@ struct ChannelList: View {
                 }
             }
         }
-        .onReceive(client.events) { event in
+        .stream(client.events) { event in
             switch event {
             case .channelList(let name, let count, let topic):
                 rawChannels[name] = ChannelListData(name: name, count: count, topic: topic)

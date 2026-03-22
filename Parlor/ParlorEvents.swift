@@ -8,6 +8,7 @@
 import SwiftUI
 import UserNotifications
 
+@MainActor
 struct ParlorEvents {
     @AppStorage("playChatSound") private static var playChatSound = true
     @AppStorage("mentionNotifications") private static var mentionNotifications = false
