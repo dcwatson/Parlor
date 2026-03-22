@@ -8,8 +8,6 @@
 import SwiftUI
 
 struct ConsoleLine: View {
-    @AppStorage("monospace") private var monospace = false
-
     let line: IRCLine
 
     var lineColor: Color {
@@ -29,21 +27,42 @@ struct ConsoleLine: View {
                 .textSelection(.enabled)
         }
         .foregroundStyle(lineColor)
-        .monospaced(monospace)
+    }
+}
+
+struct ConsoleBatch: View {
+    let batch: IRCBatch
+
+    var body: some View {
+        DisclosureGroup("BATCH \(batch.id) (\(batch.type))") {
+            LazyVStack(alignment: .leading, spacing: 5) {
+                ForEach(batch.lines) { line in
+                    ConsoleLine(line: line)
+                }
+            }
+        }
     }
 }
 
 struct ConsoleView: View {
     @Environment(IRCClient.self) var client
 
+    @AppStorage("monospace") private var monospace = false
+
     var body: some View {
         ScrollView(.vertical) {
             LazyVStack(alignment: .leading, spacing: 5) {
-                ForEach(client.log) { line in
-                    ConsoleLine(line: line)
+                ForEach(client.log) { entry in
+                    switch entry {
+                    case .line(let line):
+                        ConsoleLine(line: line)
+                    case .batch(let batch):
+                        ConsoleBatch(batch: batch)
+                    }
                 }
             }
             .padding()
+            .monospaced(monospace)
         }
         .defaultScrollAnchor(.bottom)
         .background(.background)

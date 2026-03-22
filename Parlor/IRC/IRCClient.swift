@@ -50,6 +50,36 @@ enum IRCEvent {
     case app(AppEvent)
 }
 
+final class IRCBatch: Identifiable {
+    var id: String { name }
+
+    let name: String
+    let type: String
+    let params: [String]
+
+    var lines: [IRCLine] = []
+
+    init(name: String, type: String, params: [String] = []) {
+        self.name = name
+        self.type = type
+        self.params = params
+    }
+}
+
+enum LogEntry: Identifiable {
+    case line(IRCLine)
+    case batch(IRCBatch)
+
+    var id: String {
+        switch self {
+        case .line(let line):
+            return line.id.uuidString
+        case .batch(let batch):
+            return batch.id
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class IRCClient {
@@ -72,10 +102,11 @@ final class IRCClient {
 
     var availableCapabilities: IRCCapabilities = .init()
     var capabilities: IRCCapabilities = .init()
-    var log: [IRCLine] = []
+    var log: [LogEntry] = []
     var users: [IRCUser] = []
     var channels: [IRCChannel] = []
     var conversations: [IRCConversation] = []
+    var batches: [String: IRCBatch] = [:]
 
     var supportsTags: Bool { capabilities.has("message-tags") }
 
@@ -126,7 +157,14 @@ final class IRCClient {
         while log.count >= consoleLimit {
             log.removeFirst()
         }
-        log.append(line)
+        log.append(.line(line))
+    }
+
+    private func logBatch(_ batch: IRCBatch) {
+        while log.count >= consoleLimit {
+            log.removeFirst()
+        }
+        log.append(.batch(batch))
     }
 
     func appEvent(_ event: AppEvent) {
@@ -199,9 +237,11 @@ final class IRCClient {
 
     private func lineReceived(_ line: IRCLine) {
         // Ignore RPL_LIST items for now, since there can be thousands of them.
-        if line.command != "322" {
+        // Also don't log batch lines as lines, they will be logged in the BATCH end command.
+        if line.command != "322" && line["batch"] == nil && line.command != "BATCH" {
             logLine(line)
         }
+
         events.broadcast(.line(line))
 
         if let number = Int(line.command) {
@@ -218,6 +258,10 @@ final class IRCClient {
     }
 
     private func handleCommand(_ command: String, line: IRCLine) {
+        if let batchId = line["batch"], let batch = batches[batchId] {
+            batch.lines.append(line)
+        }
+
         // Ignore anything in a batch that isn't PRIVMSG or NOTICE (for now)
         if line["batch"] != nil && command != "PRIVMSG" && command != "NOTICE" { return }
 
@@ -337,6 +381,20 @@ final class IRCClient {
                 return
             }
             user.realname = realname
+        case "BATCH":
+            if let ref = line[0] {
+                let name = String(ref.dropFirst())
+                if ref.hasPrefix("+") {
+                    if let type = line[1] {
+                        batches[name] = IRCBatch(name: name, type: type, params: Array(line.params[2...]))
+                    }
+                }
+                else if ref.hasPrefix("-") {
+                    if let batch = batches.removeValue(forKey: name) {
+                        logBatch(batch)
+                    }
+                }
+            }
         default:
             break
         }

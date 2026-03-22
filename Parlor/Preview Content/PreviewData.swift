@@ -51,12 +51,21 @@ struct PreviewData: PreviewModifier {
             sendEvent: false
         )
         client.channels = [channel]
-        client.log = [
-            IRCLine("NICK", params: ["Beth"]),
-            IRCLine("USER", params: ["parlor", "0", "*", "Parlor User"]),
-            IRCLine("PING", params: ["3205B4D3"]),
+        let batch = IRCBatch(name: "asdf", type: "chathistory", params: ["#parlor"])
+        batch.lines = [
+            .init(
+                "PRIVMSG",
+                params: ["#parlor", "Baltimore Orioles, number one!"],
+                source: beth.hostmask
+            ),
+            .init("PRIVMSG", params: ["#parlor", "Shut up Beth"], source: joey.hostmask),
         ]
-        client.log[2].outgoing = false
+        client.log = [
+            .line(IRCLine("NICK", params: ["Beth"])),
+            .line(IRCLine("USER", params: ["parlor", "0", "*", "Parlor User"])),
+            .line(IRCLine("PING", params: ["3205B4D3"], outgoing: false)),
+            .batch(batch),
+        ]
         client.conversations = [
             .init(user: beth),
         ]
