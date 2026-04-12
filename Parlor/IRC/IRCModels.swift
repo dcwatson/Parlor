@@ -104,14 +104,15 @@ class IRCMessage: Identifiable, Equatable {
         imageUrls = await withTaskGroup(of: Int?.self) { group in
             var allUrls: [URL] = []
 
-            for (index, match) in Self.linkDetector.matches(
+            for match in Self.linkDetector.matches(
                 in: message,
                 options: [],
                 range: NSRange(message.startIndex..<message.endIndex, in: message)
-            ).enumerated() {
+            ) {
                 guard let range = Range(match.range, in: message) else { continue }
                 if let url = URL(string: String(message[range])) {
                     allUrls.append(url)
+                    let index = allUrls.count - 1
                     group.addTask {
                         if let ct = await fetchContentType(url) {
                             if ct.hasPrefix("image/") && !ct.hasSuffix("xml") {
@@ -131,6 +132,7 @@ class IRCMessage: Identifiable, Equatable {
 
             return indices.sorted().map { allUrls[$0] }
         }
+
         needsUrlDetection = false
     }
 }

@@ -80,7 +80,6 @@ struct SettingsView: View {
         }
         #if os(macOS)
             .scenePadding()
-            .frame(width: 350, height: 200)
         #endif
     }
 }

@@ -156,8 +156,8 @@ extension IRCTags {
 }
 
 struct IRCLine: Identifiable {
-    var id = UUID()
-    
+    var id: String
+
     var tags: IRCTags
     var source: String?
     var command: String
@@ -185,6 +185,8 @@ struct IRCLine: Identifiable {
             tags = []
         }
 
+        id = tags["msgid"] ?? UUID().uuidString
+
         if reader.skip(":") {
             source = reader.readUntil(" ")
         } else {
@@ -210,6 +212,7 @@ struct IRCLine: Identifiable {
         source: String? = nil,
         outgoing: Bool = true
     ) {
+        self.id = tags["msgid"] ?? UUID().uuidString
         self.tags = tags
         self.source = source
         self.command = command

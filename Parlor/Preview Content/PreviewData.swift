@@ -10,11 +10,12 @@ import SwiftUI
 struct PreviewEnvironment {
     var client: IRCClient
     var channel: IRCChannel
+    var parlor: Parlor
 }
 
 struct PreviewData: PreviewModifier {
     static func makeSharedContext() async throws -> PreviewEnvironment {
-        let client = IRCClient()
+        let client = IRCClient(Server())
         let channel = IRCChannel("#avaraline", topic: "Testing is good!")
         let beth = IRCUser("Beth!parlor@localhost.localdomain")
         let joey = IRCUser("Joey!parlor@localhost.localdomain")
@@ -69,11 +70,13 @@ struct PreviewData: PreviewModifier {
         client.conversations = [
             .init(user: beth),
         ]
-        return PreviewEnvironment(client: client, channel: channel)
+        let parlor = Parlor()
+        return PreviewEnvironment(client: client, channel: channel, parlor: parlor)
     }
 
     func body(content: Content, context: PreviewEnvironment) -> some View {
         content
+            .environment(context.parlor)
             .environment(context.client)
             .environment(context.channel)
     }

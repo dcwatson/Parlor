@@ -8,21 +8,24 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var client = IRCClient()
+    @Environment(Parlor.self) private var parlor
+
+    @State private var client: IRCClient?
 
     var body: some View {
-        if client.connected {
+        if let client {
             MainNavigation()
                 .environment(client)
+                .focusedSceneValue(client)
                 .onDisappear {
                     client.disconnect()
                 }
         } else {
-            ConnectForm()
-                .environment(client)
-                #if os(macOS)
-                    .frame(maxWidth: 400)
-                #endif
+            ServerManager { server in
+                let client = IRCClient(server)
+                client.connect()
+                self.client = client
+            }
         }
     }
 }

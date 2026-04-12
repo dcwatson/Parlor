@@ -69,7 +69,7 @@ final class IRCConnection: @unchecked Sendable {
                         events.broadcast(.lineReceived(line))
                     }
                 } catch {
-                    print(error)
+                    logger.debug("Connection error: \(error.localizedDescription)")
                 }
             }
         }

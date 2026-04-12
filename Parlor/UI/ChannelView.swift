@@ -34,6 +34,22 @@ struct ChannelView: View {
         @State private var showingUsers: Bool = false
     #endif
 
+    func part() {
+        client.send(.part(channel: channel.name))
+        client.appEvent(.popNavigation)
+    }
+
+    func handleAppEvent(_ event: AppEvent) {
+        switch event {
+        case .partCommand(let c):
+            if c == channel { part() }
+        case .setTopicCommand(let c):
+            if c == channel { showingTopicAlert = true }
+        default:
+            break
+        }
+    }
+
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 3) {
@@ -43,6 +59,10 @@ struct ChannelView: View {
             }
             .padding()
             .scrollTargetLayout()
+        }
+        .focusedSceneValue(channel)
+        .onChange(of: channel) { oldChannel, newChannel in
+            //position.scrollTo(edge: .bottom)
         }
         .background(.background)
         .defaultScrollAnchor(.bottom)
@@ -64,7 +84,11 @@ struct ChannelView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            InputView(placeholder: "Message \(channel.name)", text: $inputText) { text in
+            InputView(
+                placeholder: "Message \(channel.name)",
+                text: $inputText,
+                focused: $inputFocused
+            ) { text in
                 client.send(.privmsg(target: channel.name, message: text))
                 inputText = ""
             }
@@ -74,8 +98,14 @@ struct ChannelView: View {
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task {
+        .task(id: channel.id) {
             inputFocused = true
+
+            for await event in client.events.stream {
+                if case .app(let ae) = event {
+                    handleAppEvent(ae)
+                }
+            }
         }
         .inspector(isPresented: $showingUsers) {
             UserList()
@@ -101,8 +131,7 @@ struct ChannelView: View {
                 }
 
                 Button {
-                    client.send(.part(channel: channel.name))
-                    client.appEvent(.popNavigation)
+                    part()
                 } label: {
                     Label("Leave", systemImage: "slash.circle")
                 }

@@ -10,6 +10,8 @@ import SwiftUI
 struct InputView: View {
     let placeholder: String
     @Binding var text: String
+    let focused: FocusState<Bool>.Binding
+
     let onSend: (String) -> Void
 
     private var canSend: Bool {
@@ -20,6 +22,7 @@ struct InputView: View {
         HStack(spacing: 6) {
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
+                .focused(focused)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
                 .background(
@@ -64,6 +67,7 @@ struct InputView: View {
 
 #Preview {
     @Previewable @State var message = ""
-    InputView(placeholder: "Send Message", text: $message) { _ in }
+    @Previewable @FocusState var focused: Bool
+    InputView(placeholder: "Send Message", text: $message, focused: $focused) { _ in }
         .padding()
 }

@@ -13,6 +13,7 @@ final class SCRAM {
     enum Algorithm: String {
         case sha1 = "SCRAM-SHA-1"
         case sha256 = "SCRAM-SHA-256"
+        case sha512 = "SCRAM-SHA-512"
 
         var hmacAlgorithm: CCHmacAlgorithm {
             switch self {
@@ -20,6 +21,8 @@ final class SCRAM {
                 CCHmacAlgorithm(kCCHmacAlgSHA1)
             case .sha256:
                 CCHmacAlgorithm(kCCHmacAlgSHA256)
+            case .sha512:
+                CCHmacAlgorithm(kCCHmacAlgSHA512)
             }
         }
 
@@ -29,6 +32,8 @@ final class SCRAM {
                 CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA1)
             case .sha256:
                 CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256)
+            case .sha512:
+                CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA512)
             }
         }
 
@@ -38,6 +43,8 @@ final class SCRAM {
                 Int(CC_SHA1_DIGEST_LENGTH)
             case .sha256:
                 Int(CC_SHA256_DIGEST_LENGTH)
+            case .sha512:
+                Int(CC_SHA512_DIGEST_LENGTH)
             }
         }
     }
@@ -306,6 +313,8 @@ final class SCRAM {
                 CC_SHA1(baseAddress, CC_LONG(data.count), &result)
             case .sha256:
                 CC_SHA256(baseAddress, CC_LONG(data.count), &result)
+            case .sha512:
+                CC_SHA512(baseAddress, CC_LONG(data.count), &result)
             }
         }
 

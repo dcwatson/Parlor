@@ -116,7 +116,7 @@ struct ChannelList: View {
 
     func refresh() {
         rawChannels = [:]
-        channels = []
+        // channels = []
         client.send(.custom(command: "LIST"))
     }
 }

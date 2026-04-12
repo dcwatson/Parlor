@@ -30,10 +30,16 @@ enum AppEvent {
     case popNavigation
     case jumpToChannel(IRCChannel)
     case jumpToConversation(IRCConversation)
+
+    // Menu commands
+    case joinCommand
+    case partCommand(IRCChannel)
+    case setTopicCommand(IRCChannel)
 }
 
 enum IRCEvent {
     case connected
+    case ready // sent after the MOTD is finished
     case disconnected
 
     case line(IRCLine)
@@ -73,7 +79,7 @@ enum LogEntry: Identifiable {
     var id: String {
         switch self {
         case .line(let line):
-            return line.id.uuidString
+            return line.id
         case .batch(let batch):
             return batch.id
         }
@@ -82,22 +88,29 @@ enum LogEntry: Identifiable {
 
 @MainActor
 @Observable
-final class IRCClient {
+final class IRCClient: Hashable, Identifiable {
+    static func == (lhs: IRCClient, rhs: IRCClient) -> Bool {
+        ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
+    }
+
     enum Target {
         case channel(IRCChannel)
         case user(IRCUser)
         case unspecified
     }
 
-    var nickname: String = NSUserName()
-    var identity: String = NSUserName()
-    var realname: String = NSFullUserName()
-    var username: String = ""
-    var password: String = ""
+    let server: Server
 
-    var auth: IRCAuthentication = NoAuth()
+    var nickname: String
+    var identity: String
+    var realname: String
 
     var connected: Bool = false
+    var ready: Bool = false
     var supports: [String: String] = [:]
 
     var availableCapabilities: IRCCapabilities = .init()
@@ -113,22 +126,37 @@ final class IRCClient {
     @ObservationIgnored var events = Streamer<IRCEvent>()
 
     @ObservationIgnored private var conn: IRCConnection = .init()
+    @ObservationIgnored private var auth: IRCAuthentication = NoAuth()
+    @ObservationIgnored private var eventLoop: Task<Void, Never>?
 
     @ObservationIgnored @AppStorage("consoleLimit") private var consoleLimit = 10000
 
-    init() {
-        Task {
+    init(_ server: Server) {
+        self.server = server
+        self.nickname = server.nickname
+        self.identity = server.identity
+        self.realname = server.realname
+    }
+
+    func connect() {
+        guard !connected, eventLoop == nil else { return }
+
+        auth = server.makeAuth()
+        eventLoop = Task {
+            conn.connect(server.address, port: server.port, useTLS: server.useTLS)
             for await event in conn.events.stream {
                 switch event {
                 case .connected:
+                    connected = true
                     auth.clientConnected(client: self)
                     send(.capLS(version: 302))
                     send(.nick(nickname: nickname))
                     send(.user(user: identity, realname: realname))
-                    connected = true
                     events.broadcast(.connected)
                 case .disconnected:
                     connected = false
+                    ready = false
+                    auth = NoAuth()
                     events.broadcast(.disconnected)
                 case .lineReceived(let line):
                     lineReceived(line)
@@ -137,15 +165,13 @@ final class IRCClient {
         }
     }
 
-    func connect(_ host: String, port: UInt16 = 6667, useTLS: Bool = false) {
-        conn.connect(host, port: port, useTLS: useTLS)
-    }
-
     func disconnect() {
         conn.close()
     }
 
     func send(_ command: IRCCommand) {
+        guard connected else { return }
+
         Task {
             let line = command.toLine()
             try await conn.write(line, includeTags: supportsTags)
@@ -238,7 +264,7 @@ final class IRCClient {
     private func lineReceived(_ line: IRCLine) {
         // Ignore RPL_LIST items for now, since there can be thousands of them.
         // Also don't log batch lines as lines, they will be logged in the BATCH end command.
-        if line.command != "322" && line["batch"] == nil && line.command != "BATCH" {
+        if line.command != "322" && line["batch"] == nil {
             logLine(line)
         }
 
@@ -250,7 +276,7 @@ final class IRCClient {
             } else if let err = IRCError(rawValue: number) {
                 handleError(err, line: line)
             } else {
-                print("UNKNOWN NUMERIC", line)
+                logger.debug("Unknown numeric: \(number, privacy: .public)")
             }
         } else {
             handleCommand(line.command.uppercased(), line: line)
@@ -295,8 +321,7 @@ final class IRCClient {
                 // When we join a channel, request the userlist and chat history (if possible)
                 if supports.keys.contains("WHOX") {
                     send(.whox(mask: channel.name, fields: "uhnfar"))
-                }
-                else {
+                } else {
                     send(.who(mask: channel.name))
                 }
                 if capabilities.has("chathistory") {
@@ -340,7 +365,7 @@ final class IRCClient {
                     convo.privmsg(message)
                 }
             case .unspecified:
-                print("PRIVMSG with invalid target")
+                logger.warning("PRIVMSG with invalid target: \(line[0] ?? "<blank>", privacy: .public)")
             }
         case "CAP":
             guard let newNick = line[0], let subcommand = line[1] else { return }
@@ -386,10 +411,13 @@ final class IRCClient {
                 let name = String(ref.dropFirst())
                 if ref.hasPrefix("+") {
                     if let type = line[1] {
-                        batches[name] = IRCBatch(name: name, type: type, params: Array(line.params[2...]))
+                        batches[name] = IRCBatch(
+                            name: name,
+                            type: type,
+                            params: Array(line.params[2...])
+                        )
                     }
-                }
-                else if ref.hasPrefix("-") {
+                } else if ref.hasPrefix("-") {
                     if let batch = batches.removeValue(forKey: name) {
                         logBatch(batch)
                     }
@@ -404,6 +432,11 @@ final class IRCClient {
         switch reply {
         case .welcome:
             events.broadcast(.welcome(line[0] ?? ""))
+        case .endofmotd:
+            if !ready {
+                ready = true
+                events.broadcast(.ready)
+            }
         case .isupport:
             for (idx, param) in line.params.enumerated() {
                 if (idx == 0) || (idx >= line.params.count - 1) { continue }
@@ -427,11 +460,11 @@ final class IRCClient {
                 if let hostname = line[3] { user.hostname = hostname }
                 if let realname = line.message {
                     let reader = StringReader(realname)
-                    let _ = reader.readUntil(" ") // skip past hopcount
+                    let _ = reader.readUntil(" ")  // skip past hopcount
                     user.realname = reader.read()
                 }
             }
-        case.whoxreply:
+        case .whoxreply:
             // https://ircv3.net/specs/extensions/whox
             // uhnfar -> <client> [user] [host] [nick] [flags] [acct] :[realname]
             if let user = getUser(line[3]) {
@@ -466,6 +499,11 @@ final class IRCClient {
         case .nicknameinuse:
             nickname = nickname + "_"
             send(.nick(nickname: nickname))
+        case .nomotd:
+            if !ready {
+                ready = true
+                events.broadcast(.ready)
+            }
         case .saslfail, .saslaborted, .saslalready, .sasltoolong:
             auth.clientError(client: self, error: err, line: line)
         default:

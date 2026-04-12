@@ -12,25 +12,33 @@ enum NavSelection: Hashable {
     case console
     case channels
     case serverInfo
+    case settings
     case channel(IRCChannel)
     case conversation(IRCConversation)
 }
 
 struct ChannelNavItem: View {
     let channel: IRCChannel
+    let number: Int
 
     var body: some View {
         HStack {
             Text(channel.name)
             Spacer()
+            Text("⌘\(number)")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+            /*
             Text(String(channel.users.count))
                 .foregroundStyle(.secondary)
                 .font(.subheadline)
+             */
         }
     }
 }
 
 struct MainNavigation: View {
+    //@Environment(\.modelContext) var modelContext
     @Environment(IRCClient.self) var client
 
     @AppStorage("showServerInfo") private var showServerInfo = true
@@ -58,10 +66,13 @@ struct MainNavigation: View {
                 Label("Browse Channels", systemImage: "list.bullet")
                     .tag(NavSelection.channels)
 
+                Label("Settings", systemImage: "gear")
+                    .tag(NavSelection.settings)
+
                 if !client.channels.isEmpty {
                     Section("Channels") {
-                        ForEach(client.channels) { channel in
-                            ChannelNavItem(channel: channel)
+                        ForEach(client.channels.enumerated(), id: \.offset) { index, channel in
+                            ChannelNavItem(channel: channel, number: index + 1)
                                 .tag(NavSelection.channel(channel))
                         }
                     }
@@ -75,16 +86,7 @@ struct MainNavigation: View {
                         }
                     }
                 }
-                #if os(iOS)
-                    Button {
-                        showingAppSettings = true
-                    } label: {
-                        Label("App Settings", systemImage: "gear")
-                    }
-                #endif
             }
-            .listStyle(.sidebar)
-
         } detail: {
             switch selection {
             case nil:
@@ -95,9 +97,12 @@ struct MainNavigation: View {
                 ServerInfoView()
             case .channels:
                 ChannelList()
+            case .settings:
+                ServerTabs(server: client.server)
             case .channel(let channel):
                 ChannelView()
                     .environment(channel)
+                    //.focusedSceneValue(channel)
             case .conversation(let conversation):
                 ConversationView()
                     .environment(conversation)
@@ -105,6 +110,10 @@ struct MainNavigation: View {
         }
         .stream(client.events) { event in
             switch event {
+            case .ready:
+                if let serverName = client.supports["NETWORK"], client.server.updateName {
+                    client.server.name = serverName
+                }
             case .serverError(let msg):
                 lastError = msg
                 showingError = true
@@ -116,6 +125,10 @@ struct MainNavigation: View {
                     selection = .channel(channel)
                 case .jumpToConversation(let conversation):
                     selection = .conversation(conversation)
+                case .joinCommand:
+                    showingJoinAlert = true
+                default:
+                    break
                 }
             default:
                 break

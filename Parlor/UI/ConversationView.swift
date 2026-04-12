@@ -37,7 +37,11 @@ struct ConversationView: View {
                 .frame(height: 80)
         }
         .overlay(alignment: .bottom) {
-            InputView(placeholder: "Message \(conversation.user.nickname)", text: $inputText) {
+            InputView(
+                placeholder: "Message \(conversation.user.nickname)",
+                text: $inputText,
+                focused: $inputFocused
+            ) {
                 text in
                 client.send(.privmsg(target: conversation.user.nickname, message: text))
                 inputText = ""

@@ -47,9 +47,15 @@ extension IRCAuthentication {
 class NoAuth: IRCAuthentication {}
 
 class PasswordAuth: IRCAuthentication {
+    private var password: String
+
+    init(_ password: String) {
+        self.password = password
+    }
+
     func clientConnected(client: IRCClient) {
-        if !client.password.isEmpty {
-            client.send(.pass(password: client.password))
+        if !password.isEmpty {
+            client.send(.pass(password: password))
         }
     }
 }
@@ -59,6 +65,7 @@ class SASLAuth: IRCAuthentication {
 
     enum Mechanism: String {
         case none = ""
+        case scramSha512 = "SCRAM-SHA-512"
         case scramSha256 = "SCRAM-SHA-256"
         case scramSha1 = "SCRAM-SHA-1"
         case plain = "PLAIN"
@@ -71,10 +78,14 @@ class SASLAuth: IRCAuthentication {
         case invalidState
     }
 
+    private var username: String
+    private var password: String
     private var scram: SCRAM?
     private var mechanism: Mechanism = .none
 
-    init(allowPlain: Bool = true) {
+    init(username: String, password: String, allowPlain: Bool = true) {
+        self.username = username
+        self.password = password
         self.allowPlain = allowPlain
     }
 
@@ -86,12 +97,15 @@ class SASLAuth: IRCAuthentication {
             throw Error.saslNotSupported
         }
 
-        if supports.values.contains("SCRAM-SHA-256") {
+        if supports.values.contains("SCRAM-SHA-512") {
+            mechanism = .scramSha512
+            scram = SCRAM(username: username, password: password, algorithm: .sha512)
+        } else if supports.values.contains("SCRAM-SHA-256") {
             mechanism = .scramSha256
-            scram = SCRAM(username: client.username, password: client.password, algorithm: .sha256)
+            scram = SCRAM(username: username, password: password, algorithm: .sha256)
         } else if supports.values.contains("SCRAM-SHA-1") {
             mechanism = .scramSha1
-            scram = SCRAM(username: client.username, password: client.password, algorithm: .sha1)
+            scram = SCRAM(username: username, password: password, algorithm: .sha1)
         } else if allowPlain && supports.values.contains("PLAIN") {
             mechanism = .plain
         } else {
@@ -105,7 +119,7 @@ class SASLAuth: IRCAuthentication {
         switch mechanism {
         case .none:
             throw Error.noSupportedMechanism
-        case .scramSha256, .scramSha1:
+        case .scramSha512, .scramSha256, .scramSha1:
             guard let scram else { throw Error.invalidState }
             switch scram.status {
             case .notStarted:
@@ -132,7 +146,7 @@ class SASLAuth: IRCAuthentication {
             }
         case .plain:
             if line.message == "+" {
-                let auth = "\(client.username)\0\(client.username)\0\(client.password)"
+                let auth = "\(username)\0\(username)\0\(password)"
                 client.send(.authenticate(data: auth.base64EncodedString()))
             }
         }
